@@ -1,32 +1,26 @@
 # The Claude Code session inbox socket
 
-A language-neutral description of the socket on which a running Claude Code
-session accepts messages from other processes on the same machine. Version 1 of
-the frame (`msgV: 1`), as shipped in Claude Code 2.1.310.
+The socket on which a running Claude Code session accepts messages from other
+processes on the same machine. Frame version 1 (`msgV: 1`), as shipped in
+Claude Code 2.1.310.
 
-This is an unofficial document. The frame is an internal interface of Claude
-Code and can change in any release without notice. Re-run
-`conformance/check.py` after an upgrade before trusting any line below.
+Unofficial. The frame is an internal interface and can change in any release.
+Run `conformance/check.py` after an upgrade before trusting a line below.
 
-## How to read the tags
+## Tags
 
-Every statement carries one tag saying how it is known:
+Every statement says how it is known:
 
-- **OFFICIAL**: stated in Anthropic's documentation. The page is
+- **OFFICIAL**: in Anthropic's docs, the page
   [Message your other Claude Code sessions](https://code.claude.com/docs/en/cross-session-messaging)
   unless another is named.
-- **OBSERVED**: exercised against Claude Code 2.1.310 on Linux x86_64 on
-  2026-10-26, with throwaway `claude -p` and interactive sessions; see
-  `CHANGELOG.md` for the run. Where the wording says "-p session" or
-  "interactive session", only that kind was exercised.
-- **THIRD-PARTY**: stated by the Go client
+- **OBSERVED**: run against Claude Code 2.1.310 on Linux, 2026-10-26, in
+  throwaway sessions (`CHANGELOG.md` has the run).
+- **THIRD-PARTY**: from the Go client
   [claude-code-socket-transport](https://github.com/PeterSR/claude-code-socket-transport),
-  which read the protocol out of Claude Code 2.1.233.
-- **UNVERIFIED**: not exercised. Most such lines add "(read in the 2.1.310
-  bundle)", meaning the behaviour was read from the JavaScript bundled in the
-  `claude` binary but not run; the rest are plain gaps.
-
-Names in `code` are literal field names, values or paths.
+  which read 2.1.233.
+- **UNVERIFIED**: not run. "UNVERIFIED (bundle)" means read in the JavaScript
+  bundled in the 2.1.310 binary.
 
 ## 1. Transport
 
@@ -41,8 +35,7 @@ Names in `code` are literal field names, values or paths.
   longer than 103 bytes, or when Claude Code refuses the default directory (not
   owned by the user or root, world- or group-writable without the sticky bit, a
   symlink, and similar). OFFICIAL for the fallback directory and the refusal;
-  the exact rules and the 103-byte limit are UNVERIFIED (read in the 2.1.310
-  bundle). On Termux the base is `$PREFIX/tmp`. UNVERIFIED (read in the bundle).
+  the exact rules and the 103-byte limit are UNVERIFIED (bundle). On Termux the base is `$PREFIX/tmp`. UNVERIFIED (bundle).
   When no directory is acceptable the session runs with no inbox and `/status`
   says `unavailable`. OFFICIAL.
 - The socket is mode `0600` inside a `0700` directory owned by the user, so
@@ -50,12 +43,11 @@ Names in `code` are literal field names, values or paths.
   (restricted to the OS user).
 - A hidden flag `--messaging-socket-path <abs path>` binds the inbox at a chosen
   path; its parent must be a real directory, mode `0700`, owned by the user.
-  UNVERIFIED (read in the 2.1.310 bundle; not in `--help`).
+  UNVERIFIED (bundle; not in `--help`).
 - If the default path is in use by another live process (a sibling pid
   namespace, say), the session binds `<pid>-<8 hex>.sock` instead. UNVERIFIED
-  (read in the bundle).
-- Windows pipe names have the form `\\.\pipe\cc-msg-<32 hex>`. UNVERIFIED (read
-  in the bundle). Native Windows is not covered by anything OBSERVED here.
+  (bundle).
+- Windows pipe names have the form `\\.\pipe\cc-msg-<32 hex>`. UNVERIFIED (bundle). Native Windows is not covered by anything OBSERVED here.
 - The inbox is up within about two seconds of process start, before the first
   model turn; it goes down when the session exits and the socket file is
   removed. OBSERVED. The debug log (`claude --debug`) records
@@ -73,8 +65,7 @@ How a process finds a session's socket:
   path) and `CLAUDE_CODE_MESSAGING_TOKEN` (a per-session secret, section 4) to
   its hooks and Bash tool commands, before any hook runs, `SessionStart`
   included. OFFICIAL; OBSERVED in a `SessionStart` hook and in Bash tool calls.
-  Both are unset in a session without an inbox. UNVERIFIED (read in the
-  bundle).
+  Both are unset in a session without an inbox. UNVERIFIED (bundle).
 - **`/status`**. Interactive sessions show a `Peer address` row with
   `uds:<path>`, or `unavailable` and the reason. OFFICIAL; OBSERVED
   (`Peer address: uds:/run/user/1000/cc-socks/<pid>.sock`).
@@ -102,7 +93,7 @@ How a process finds a session's socket:
   test. Beside each record sits `<pid>.<sha256 of the canonical socket path>.key`
   (mode `0600`), a JSON file with `peerToken` (32 hex), `procStart` and
   `pidDomain`; it is how another session authenticates to this one where auth
-  is required. File name OBSERVED; contents UNVERIFIED (read in the bundle).
+  is required. File name OBSERVED; contents UNVERIFIED (bundle).
 - A connected `nc`, `socat` or any Unix-socket client can probe liveness; a
   stale socket file refuses the connection. OBSERVED.
 
@@ -123,7 +114,7 @@ How a process finds a session's socket:
   the session is unharmed. OBSERVED. THIRD-PARTY gives the same figure as 1 MiB.
 - A connection that has not completed one line within 30 seconds of connecting
   is closed. OFFICIAL; OBSERVED at 30.0 s. The timer is cleared by the first
-  complete line. UNVERIFIED (read in the bundle). So build the whole payload
+  complete line. UNVERIFIED (bundle). So build the whole payload
   first, then connect. OFFICIAL.
 - A frame that is not a JSON object with a string `type` is ignored (the debug
   log says `Ignoring message without valid type field`). OBSERVED. A `type` the
@@ -131,8 +122,7 @@ How a process finds a session's socket:
   OBSERVED.
 - `user` frames are processed in arrival order on one queue; `control` frames
   (other than `notify_when_idle`) and `user` frames with `priority: now` and no
-  attachments are handled at once, outside that order. UNVERIFIED (read in the
-  bundle).
+  attachments are handled at once, outside that order. UNVERIFIED (bundle).
 
 ## 4. The auth frame
 
@@ -148,7 +138,7 @@ How a process finds a session's socket:
 - Two tokens exist per session, both 32 hex characters: the **child token**,
   exported as `CLAUDE_CODE_MESSAGING_TOKEN` to hooks and Bash commands, and the
   **peer token**, published in the registry key file for other sessions.
-  UNVERIFIED (read in the bundle). Only the child token is documented.
+  UNVERIFIED (bundle). Only the child token is documented.
   OFFICIAL.
 - What auth does: a connection that sent the child token is treated as the
   session's own child even where the receiver has no process evidence (macOS
@@ -157,7 +147,7 @@ How a process finds a session's socket:
   process ancestry, so an own-child post without any auth line is also
   delivered. OFFICIAL; OBSERVED both ways from a `SessionStart` hook.
 - Only the first auth line of a connection counts; later ones are ignored.
-  UNVERIFIED (read in the bundle). A wrong token is not an error on
+  UNVERIFIED (bundle). A wrong token is not an error on
   macOS/Linux; it only means the sender is unverified. OBSERVED.
 
 ## 5. The message frame
@@ -169,7 +159,7 @@ Minimal, as the receiver requires it:
 ```
 
 Full, as Claude Code itself sends it (THIRD-PARTY, and consistent with the
-receiver read in the bundle):
+receiver bundle):
 
 ```json
 {"msgV":1,"msg_id":"4b7e0f3a-6f4b-4c1e-9f6d-2a1c7e5b9d10","type":"user","message":{"role":"user","content":"the build is green"},"priority":"next","from":"uds:/run/user/1000/cc-socks/23456.sock","session_id":"2a191324-a7b9-431f-85b4-9a1773eeea24"}
@@ -179,17 +169,17 @@ receiver read in the bundle):
 |---|---|---|---|
 | `type` | yes | `"user"` | OBSERVED |
 | `message.content` | yes | a non-empty string; an empty string, an array or a missing field is ignored (`Ignoring user message with missing or non-string content`) | OBSERVED |
-| `message.role` | no | `"user"`; present in Claude Code's own frames, not checked by the receiver | UNVERIFIED (read in the bundle); frames without it are delivered, OBSERVED |
+| `message.role` | no | `"user"`; present in Claude Code's own frames, not checked by the receiver | UNVERIFIED (bundle); frames without it are delivered, OBSERVED |
 | `msgV` | no | `1`, the protocol version | THIRD-PARTY; the receiver does not reject other values, UNVERIFIED |
-| `msg_id` | no | a UUID in `8-4-4-4-12` lowercase or uppercase hex; echoed as `orig_msg_id` in receipts; a value that is not a UUID is treated as absent | OBSERVED (echo); format rule UNVERIFIED (read in the bundle) |
-| `priority` | no | `"now"`, `"next"` (default) or `"later"`; any other value reads as `next` | OBSERVED for the three values; the fallback is UNVERIFIED (read in the bundle) |
+| `msg_id` | no | a UUID in `8-4-4-4-12` lowercase or uppercase hex; echoed as `orig_msg_id` in receipts; a value that is not a UUID is treated as absent | OBSERVED (echo); format rule UNVERIFIED (bundle) |
+| `priority` | no | `"now"`, `"next"` (default) or `"later"`; any other value reads as `next` | OBSERVED for the three values; the fallback is UNVERIFIED (bundle) |
 | `from` | no | the sender's reply address, `uds:` + the percent-encoded path of a socket the sender listens on; needed for receipts and idle notices (section 7). The model does not see this field | OBSERVED |
 | `session_id` | no | when present it must equal the receiver's `sessionId` or the frame is dropped silently (`session_id mismatch`); use it to avoid posting into a recycled pid | OBSERVED |
-| `uuid` | no | the id the receiver gives the queued input; a UUID is generated when absent | UNVERIFIED (read in the bundle) |
-| `from_plugin`, `file_attachments` | no | internal; attachments are only honoured behind a feature flag | UNVERIFIED (read in the bundle) |
+| `uuid` | no | the id the receiver gives the queued input; a UUID is generated when absent | UNVERIFIED (bundle) |
+| `from_plugin`, `file_attachments` | no | internal; attachments are only honoured behind a feature flag | UNVERIFIED (bundle) |
 
 Percent-encoding for `from`: every character outside `A-Z a-z 0-9 : _ / . \ -`
-is written as `%XX` per UTF-8 byte. UNVERIFIED (read in the bundle);
+is written as `%XX` per UTF-8 byte. UNVERIFIED (bundle);
 unencoded ASCII paths work as is, OBSERVED.
 
 ### 5.1 What the model sees
@@ -226,7 +216,7 @@ the build is green
   `from-session` (`[A-Za-z0-9_-]{1,80}`), `hop-chain` (comma-separated 24-hex
   tokens, loop guard), `from-name` (display name, quotes and angle brackets
   removed), `from-mode` (`bypass` or `prompting`, the sender's permission
-  class), `from-plugin`. UNVERIFIED (read in the bundle); THIRD-PARTY names
+  class), `from-plugin`. UNVERIFIED (bundle); THIRD-PARTY names
   `from` and `from-name`.
 - The receiver re-serialises what it parsed and accepts the envelope only when
   the result matches the input byte for byte, so attribute order and single
@@ -238,8 +228,7 @@ the build is green
   address: with a bare frame the model has none, even if the frame's own `from`
   field is set. OBSERVED (the model said so).
 - `from-mode` is how a sender "identifies itself as bypassing permission
-  prompts" in the delivery rules of section 9. UNVERIFIED (read in the
-  bundle).
+  prompts" in the delivery rules of section 9. UNVERIFIED (bundle).
 
 ## 6. Control frames
 
@@ -255,14 +244,13 @@ the build is green
 | `rename` | `name` (string) | renames the session; the registry record shows the new name with `nameSource: "peer"` and the status line changes | OBSERVED in an interactive session; OBSERVED to have **no effect** on a `-p` session (the handler is not wired there) |
 | `notify_when_idle` | `from` (reply address), `msg_id`, `from_mode` (optional) | subscribe to one notice when the session is next idle or exits; answered at once if it is idle already | OBSERVED; OFFICIAL (2.1.236 and later, 12-hour expiry, inbound controls apply) |
 | `peer_idle_notice` | `orig_msg_id`, `state`, `finished_at`, `detail`, `from`, `from_mode` | the notice itself, sent by the watched session to the subscriber's socket | OBSERVED as a reply (`state: "idle"`, `finished_at` ms, `from_mode: "prompting"`) |
-| `peer_message_status` | section 7 | a receipt; the receiver matches it against its own outstanding sends and drops it otherwise | OBSERVED as a reply; consumption UNVERIFIED (read in the bundle) |
-| `yield_artifact_replies`, `unyield_artifact_replies`, `artifact_replies_yielded` | | internal hand-over of artifact comment subscriptions between sessions of one conversation | UNVERIFIED (read in the bundle) |
+| `peer_message_status` | section 7 | a receipt; the receiver matches it against its own outstanding sends and drops it otherwise | OBSERVED as a reply; consumption UNVERIFIED (bundle) |
+| `yield_artifact_replies`, `unyield_artifact_replies`, `artifact_replies_yielded` | | internal hand-over of artifact comment subscriptions between sessions of one conversation | UNVERIFIED (bundle) |
 | anything else | | logged `Unhandled control action` and ignored | OBSERVED |
 
 `notify_when_idle` is refused when `from` is missing, points at the receiver
-itself, or is not a socket the receiver can vet (section 7). UNVERIFIED (read
-in the bundle). Per target at most 3 outstanding subscriptions are kept and
-32 in all. UNVERIFIED (read in the bundle).
+itself, or is not a socket the receiver can vet (section 7). UNVERIFIED (bundle). Per target at most 3 outstanding subscriptions are kept and
+32 in all. UNVERIFIED (bundle).
 
 ## 7. Receipt frames
 
@@ -279,8 +267,8 @@ A receipt is a control frame the receiver sends, on a new connection, to the
 | `denied` | the user declined a held message | | UNVERIFIED (needs the dialog) |
 | `expired` | a held message was dropped: dialog deadline passed, hold buffer full, or the session shut down with it held | | OBSERVED (held message settled as `expired` at session exit) |
 | `expired` + `status_detail: "refused"` | the session refuses peer messages (`crossSessionInbound: refuse`, or a policy) | `status_detail` | OBSERVED |
-| `delivered` | a previously held message was approved and released | | UNVERIFIED (needs the dialog); the `reason` text says "previously-held", read in the bundle |
-| `dropped` | the inbox guard dropped it | `drop_reason`: `duplicate`, `rate-limited`, `hop-loop`, `hop-runaway` or `queue-full`; `dropped_msg_ids`: other ids coalesced into this receipt | OBSERVED for `duplicate`; the other reasons UNVERIFIED (read in the bundle) |
+| `delivered` | a previously held message was approved and released | | UNVERIFIED (needs the dialog); the `reason` text says "previously-held", bundle |
+| `dropped` | the inbox guard dropped it | `drop_reason`: `duplicate`, `rate-limited`, `hop-loop`, `hop-runaway` or `queue-full`; `dropped_msg_ids`: other ids coalesced into this receipt | OBSERVED for `duplicate`; the other reasons UNVERIFIED (bundle) |
 
 Rules:
 
@@ -294,14 +282,14 @@ Rules:
   ends in `.sock` in the same directory as its own socket, or a
   `<digits>.sock`, `<digits>-<8 hex>.sock` or `<hex>.sock` in one of the
   known `cc-socks` directories of the same uid when the sender's pid was
-  verified. UNVERIFIED (read in the bundle). OBSERVED that `<own pid>.sock`
+  verified. UNVERIFIED (bundle). OBSERVED that `<own pid>.sock`
   beside the target's socket works.
 - When sending a receipt the receiver checks, through the kernel, that the
   process listening at `from` is the process that posted the frame (same pid
-  and start token). UNVERIFIED (read in the bundle). So the listener must be
+  and start token). UNVERIFIED (bundle). So the listener must be
   the sender process itself, which is what `examples/send.py --receipts` does.
 - Drop receipts to one sender are coalesced over a 5-second trail; repeated
-  drops add ids to `dropped_msg_ids`. UNVERIFIED (read in the bundle).
+  drops add ids to `dropped_msg_ids`. UNVERIFIED (bundle).
 
 ## 8. Delivery rules
 
@@ -313,7 +301,7 @@ Rules:
   OFFICIAL; OBSERVED for `-p` and interactive sessions.
 - Priorities, OBSERVED with three frames posted within 100 ms to an idle
   session: the first to arrive (`later`) started a turn, `now` joined that
-  turn, and `next` came in the following turn. The meaning read in the bundle:
+  turn, and `next` came in the following turn. The meaning bundle:
   `now` is handled outside the arrival queue and can overtake frames that
   arrived earlier; `next` is the default; `later` is placed after `next`.
   UNVERIFIED beyond that one observation. THIRD-PARTY: "`now` can overtake
@@ -322,7 +310,7 @@ Rules:
   first prompt from stdin. OBSERVED in a `-p` session.
 - Within a session at most 50 accepted peer messages wait to be read; past
   that, new ones are dropped with `queue-full`. OFFICIAL (50); receipt reason
-  UNVERIFIED (read in the bundle).
+  UNVERIFIED (bundle).
 
 ## 9. Inbound controls
 
@@ -351,7 +339,7 @@ OFFICIAL:
 - A **bypassing** receiver holds every message, except one whose sender
   identifies itself as bypassing too. OFFICIAL. Not OBSERVED here.
 - The sender's class is the `from-mode` attribute of the envelope (section
-  5.2); a frame without it asserts no class. UNVERIFIED (read in the bundle).
+  5.2); a frame without it asserts no class. UNVERIFIED (bundle).
 - **Own-child exception**: a message the receiver can verify as coming from its
   own child process (a hook or Bash command posting back to its session) is
   delivered regardless of class. On Linux the verification is by process
@@ -364,25 +352,25 @@ OFFICIAL:
   `expired`. At most 100 messages are held; past that the oldest is dropped.
   OFFICIAL.
 - If the receiver cannot tell its own permission mode it holds (fail closed).
-  UNVERIFIED (read in the bundle).
+  UNVERIFIED (bundle).
 
 ## 10. Limits
 
 | limit | value | tag |
 |---|---|---|
 | line length | 1,048,576 characters; the connection is dropped at that point | OBSERVED |
-| message size at the sender | "about a million characters" of serialised frame; Claude Code refuses to send past it, naming the sizes | OFFICIAL; the same 1,048,576 constant minus the auth line, UNVERIFIED (read in the bundle) |
+| message size at the sender | "about a million characters" of serialised frame; Claude Code refuses to send past it, naming the sizes | OFFICIAL; the same 1,048,576 constant minus the auth line, UNVERIFIED (bundle) |
 | first line deadline | 30 seconds from connect | OFFICIAL; OBSERVED |
 | queued accepted messages per session | 50 | OFFICIAL |
 | held messages per session | 100 | OFFICIAL |
-| identical repeats | a body identical to the previous one from the same sender within 30 seconds is dropped (`duplicate`) | OBSERVED at 1.5 s; the 30 s window UNVERIFIED (read in the bundle) |
-| rate per sender | a token bucket of 30 messages refilled at 0.5 per second; past it `rate-limited` | OFFICIAL that bursts are refused; numbers UNVERIFIED (read in the bundle) |
-| senders tracked for the above | 256, least recently seen evicted | UNVERIFIED (read in the bundle) |
-| relay loops | a `hop-chain` that already contains the receiver 10 times, or longer than 28 hops, is dropped (`hop-loop`, `hop-runaway`) | UNVERIFIED (read in the bundle) |
+| identical repeats | a body identical to the previous one from the same sender within 30 seconds is dropped (`duplicate`) | OBSERVED at 1.5 s; the 30 s window UNVERIFIED (bundle) |
+| rate per sender | a token bucket of 30 messages refilled at 0.5 per second; past it `rate-limited` | OFFICIAL that bursts are refused; numbers UNVERIFIED (bundle) |
+| senders tracked for the above | 256, least recently seen evicted | UNVERIFIED (bundle) |
+| relay loops | a `hop-chain` that already contains the receiver 10 times, or longer than 28 hops, is dropped (`hop-loop`, `hop-runaway`) | UNVERIFIED (bundle) |
 | bursts at a Claude sender | Claude Code paces its own sends to one target and refuses more "just now" | OFFICIAL; does not apply to a third-party sender, which is subject to the receiver's bucket above |
 
 The sender key for the duplicate and rate rules is the frame's `from` address
-when present, else the connecting pid. UNVERIFIED (read in the bundle).
+when present, else the connecting pid. UNVERIFIED (bundle).
 
 ## 11. `claude -p` and bare mode
 
@@ -403,7 +391,7 @@ when present, else the connecting pid. UNVERIFIED (read in the bundle).
 - Linux and WSL 2: everything above. OBSERVED on Linux.
 - macOS: same socket and frames; auth optional; own-child verification by
   process evidence only while the child runs. OFFICIAL. Claude Code's own client
-  delays its half-close by 150 ms there. UNVERIFIED (read in the bundle).
+  delays its half-close by 150 ms there. UNVERIFIED (bundle).
 - Native Windows: a named pipe, auth line required, the peer token read from the
   key file, no process evidence. OFFICIAL. Nothing here was run on Windows.
 - Containers: a session inside and one on the host cannot reach each other;
@@ -413,18 +401,16 @@ when present, else the connecting pid. UNVERIFIED (read in the bundle).
   sandbox is set by `sandbox.network.allowUnixSockets` and
   `allowAllUnixSockets`. OFFICIAL.
 
-## 13. A minimal client, in words
+## 13. A minimal client
 
-1. Find the socket: `$CLAUDE_CODE_MESSAGING_SOCKET` from inside the session, or
-   the registry record for the pid or name you want, after checking that the
-   socket connects.
-2. Build the whole payload: optionally an auth line, then one `user` frame with
-   `type`, `message.content`, and, if you want receipts, `msg_id`, `from` and
-   `session_id`.
-3. Connect, write, half-close, read until EOF, close.
-4. If you set `from`, listen on that socket for a `peer_message_status` frame.
-   No frame means accepted; `held`, `expired`, `denied` or `dropped` means it
-   did not reach the model (yet).
+1. Find the socket: `$CLAUDE_CODE_MESSAGING_SOCKET` inside the session, or the
+   registry record of the session you want, after checking it connects.
+2. Build the payload first: an optional auth line, then one `user` frame with
+   `type` and `message.content`; add `msg_id`, `from` and `session_id` if you
+   want receipts.
+3. Connect, write, half-close, read to EOF, close.
+4. If you set `from`, listen there. No frame means accepted. `held`,
+   `expired`, `denied` or `dropped` means the model did not get it.
 
-See `examples/send.py` for the same in code, and `conformance/check.py` for the
-checks behind every OBSERVED tag.
+`examples/send.py` is this in code; `conformance/check.py` holds the checks
+behind every OBSERVED tag.
