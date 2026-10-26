@@ -328,6 +328,43 @@ def main():
         time.sleep(2)
         report("R07c the first copy was delivered once", "PASS" if sum("ACK C07" in t for t in S.texts) == 1 else "FAIL", "%d" % sum("ACK C07" in t for t in S.texts))
 
+        # R17 rate bucket: a burst of distinct bodies from one sender is admitted up to 30, the 31st is rate-limited.
+        # The guard runs at admission, so the receipt comes back without the model reading the queue.
+        del reply.frames[:]
+        rl_ids = []
+        for i in range(34):
+            m = S.msg("C17 rate %s %02d" % (uuid.uuid4().hex[:4], i), reply)
+            rl_ids.append(m["msg_id"])
+            S.send([m])
+        time.sleep(3)
+        dropped = {}
+        for f in reply.frames:
+            if f.get("action") == "peer_message_status" and f.get("status") == "dropped":
+                for mid in ([f.get("orig_msg_id")] if f.get("orig_msg_id") else []) + (f.get("dropped_msg_ids") or []):
+                    dropped[mid] = f.get("drop_reason")
+        first_rl = next((i for i, mid in enumerate(rl_ids) if dropped.get(mid) == "rate-limited"), None)
+        report("R17 a burst from one sender is admitted up to a bucket of 30; the 31st is dropped with drop_reason=rate-limited",
+               "PASS" if first_rl is not None and first_rl >= 30 else "FAIL", "first rate-limited at index %s" % first_rl)
+
+        # R18 duplicate window: an identical body is dropped inside the window and admitted again past 30 s.
+        if args.quick:
+            report("R18 an identical repeat within 30 s is dropped; the same body after the window is admitted", "SKIP", "--quick")
+        else:
+            del reply.frames[:]
+            body = "C18 dup window %s" % uuid.uuid4().hex[:6]
+            a = S.msg(body, reply); S.send([a]); t_first = time.time()
+            time.sleep(5)
+            b = S.msg(body, reply); S.send([b])
+            d = reply.wait(lambda f: f.get("orig_msg_id") == b["msg_id"] and f.get("status") == "dropped", 12)
+            inside = bool(d) and d.get("drop_reason") == "duplicate"
+            while time.time() - t_first < 31:
+                time.sleep(0.5)
+            del reply.frames[:]
+            c = S.msg(body, reply); S.send([c])
+            d2 = reply.wait(lambda f: f.get("orig_msg_id") == c["msg_id"] and f.get("status") == "dropped", 8)
+            report("R18 an identical repeat within 30 s is dropped; the same body after the window is admitted",
+                   "PASS" if inside and d2 is None else "FAIL", "within=%s after_window_dropped=%s" % (inside, bool(d2)))
+
         # R08 wrong auth token tolerated (not Windows)
         S.send([{"type": "auth", "token": "0" * 32}, {"type": "user", "message": {"content": "C08 Reply exactly: ACK C08"}}])
         report("R08 a wrong auth token does not close the connection on macOS/Linux; the message is still delivered", "PASS" if S.wait_text("ACK C08", 45) else "FAIL")
