@@ -3,15 +3,20 @@
 # throwaway `claude -p` sessions and spends a few cents of model use.
 
 PYTHON ?= python3
-PY_FILES = examples/send.py examples/waiter.py conformance/check.py tests/lint_docs.py tests/test_clients.py
+PY_FILES = examples/send.py examples/waiter.py conformance/check.py tests/lint_docs.py tests/spec_table.py tests/test_clients.py
 
-.PHONY: check lint compile shellcheck test conformance
+.PHONY: check lint table compile shellcheck test conformance
 
 check: lint compile shellcheck test
 
 # Every SPEC statement carries a tag; relative links and anchors resolve.
 lint:
 	$(PYTHON) tests/lint_docs.py
+
+# The counts in SPEC.md's summary table match the tags in each section.
+# Not in check yet: SPEC.md has no summary table so far.
+table:
+	$(PYTHON) tests/spec_table.py
 
 # Syntax only, without writing __pycache__.
 compile:
