@@ -26,7 +26,8 @@ How much of each section rests on which kind of evidence, counted as section
 | [12 Platform notes](#12-platform-notes) | macOS, Windows, containers and sandboxes | 5 | 1 | 0 | 1 |
 | [13 A minimal client](#13-a-minimal-client) | the steps of a minimal client | 0 | 0 | 0 | 0 |
 | [14 Security](#14-security) | who can post, what a sender can claim and what it cannot do | 8 | 8 | 0 | 2 |
-| total |  | 54 | 86 | 11 | 42 |
+| [15 Error handling](#15-error-handling) | every way a connection or a frame fails, and what the sender sees | 13 | 23 | 1 | 12 |
+| total |  | 67 | 109 | 12 | 54 |
 
 ## 0. About this document
 
@@ -608,3 +609,129 @@ What the socket lets a process do, and what it does not:
 - **Turning it off.** `crossSessionInbound: "refuse"` drops every message, and
   `hold` keeps each for your approval; managed settings can set it for an
   organization. A refusing session still binds its socket. OFFICIAL.
+
+## 15. Error handling
+
+This section is a lookup. It gathers every way a connection or a frame fails
+and what the sender sees when it does, and it states nothing that another
+section does not; each paragraph names the section that does. The Evidence
+table at the end has one row per statement, in the order of the prose, with
+the source of that statement.
+
+The receiver never writes on the sender's connection (section 1). Whatever a
+sender learns about a failure comes in a receipt, sent to the sender's own
+socket, and only when the frame named a reply address in `from` that the
+receiver can reach and vet (section 7). A frame with no `from` gets nothing
+back. The receiver's debug log records some failures, with the lines quoted
+below.
+
+A connection to a socket file that no process listens on is refused (section
+2). A line of more than 1,048,576 characters with no newline makes the receiver
+drop the connection and deliver nothing from it; the session is unharmed
+(section 3). A connection that completes no line within 30 seconds is closed
+(section 3). On native Windows a connection without a valid auth line delivers
+nothing, and a first line that is not a valid auth line closes it; which first
+lines count as invalid there is not established (sections 3 and 4). On macOS
+and Linux a wrong token closes nothing: the frames that follow are delivered
+and the sender is treated as unverified (section 4). A Claude Code sender
+refuses to send a frame past about a million characters and names the sizes,
+and paces its own sends to one target (section 10).
+
+The receiver skips these without a reply. A line that is blank or not valid
+JSON is skipped and the rest of the connection is still read (section 3). A
+frame that is not a JSON object with a string `type` is ignored, and the debug
+log says `Ignoring message without valid type field`; a `type` the receiver
+does not know is ignored with `Received unhandled message type` (section 3). A
+`user` frame whose `message.content` is missing, empty or not a string is
+ignored with `Ignoring user message with missing or non-string content`
+(section 5). A frame whose `session_id` differs from the receiver's is dropped
+silently, with `session_id mismatch` in the debug log (section 5). A `msg_id`
+that is not a UUID is treated as absent, and a `priority` other than `now`,
+`next` or `later` reads as `next` (section 5). A control frame with an unknown
+`action` is ignored, with `Unhandled control action` in the debug log, and a
+`rename` sent to a `-p` session has no effect (sections 6 and 11).
+`notify_when_idle` is refused when `from` is missing, is the receiver itself or
+cannot be vetted, or when `msg_id` is not a UUID; past 32 subscriptions in all,
+or the per-sender limit, the oldest is answered `unavailable` (section 6).
+
+The guard drops with a `dropped` receipt that carries a `drop_reason`. A body
+identical to the previous one from the same sender within 30 seconds is
+dropped as `duplicate`. A sender past its bucket of 30 messages, refilled at
+0.5 per second, gets `rate-limited` (section 10). A session with 50 accepted
+messages waiting drops the next as `queue-full` (section 8). The reasons
+`hop-loop` and `hop-runaway` are not reachable from a local client (section
+7). Drops to one sender within 5 seconds are coalesced into one receipt, with
+the other ids in `dropped_msg_ids` (section 7). A receiver sends a receipt
+only after checking, through the kernel, that the process listening at `from`
+is the one that posted the frame (section 7). An accepted message produces no
+receipt, so silence after a clean write means the frame was taken, not that
+the model has read it (section 7).
+
+Holds and refusals follow `crossSessionInbound` and the permission classes
+(section 9). A receiver set to `refuse` drops every message and answers with
+`expired` and `status_detail: "refused"`; it still binds its socket and looks
+the same from outside. A receiver set to `hold` sends a `held` receipt and
+delivers nothing until a later `accept` applies. A prompting receiver holds a
+message whose sender asserts bypass (`holdCause: mode-mismatch`); a bypassing
+receiver holds every message unless its sender asserts bypass too; and a
+receiver that cannot tell its own permission mode holds. A held message in an
+interactive terminal opens a dialog, and a `-p` session has none. Past
+`dialogExpiry`, 5 minutes by default, the message is dropped and the receipt
+is `expired`; at most 100 are held, and past that the oldest is dropped. The
+`expired` receipt covers an elapsed deadline, a full hold buffer and a session
+that exits with a message held. The user's answer to the dialog sends `denied`
+or `delivered`.
+
+### Evidence
+
+| Claim | Source |
+|---|---|
+| The receiver never writes on the sender's connection | OBSERVED |
+| A held message gets a `held` receipt only when the frame named a `from` the receiver can reach | OBSERVED |
+| A receipt needs a `from` in the frame | OBSERVED |
+| The receiver sends a receipt only to a `from` it can vet | UNVERIFIED (bundle) |
+| A connection to a stale socket file is refused | OBSERVED |
+| A line over 1,048,576 characters with no newline drops the connection, delivers nothing and leaves the session unharmed | OBSERVED |
+| A connection with no complete line in 30 seconds is closed | OFFICIAL |
+| The same, at 30.0 seconds | OBSERVED |
+| On native Windows a connection without a valid auth line delivers nothing | OFFICIAL |
+| On native Windows a first line that is not a valid auth line closes the connection | OFFICIAL |
+| Which first lines count as invalid on Windows (blank, unparseable, not auth) | UNVERIFIED |
+| A wrong token on macOS and Linux closes nothing, and the sender is treated as unverified | OBSERVED |
+| A Claude Code sender refuses a frame past about a million characters and names the sizes | OFFICIAL |
+| That limit is the 1,048,576 constant minus the auth line | UNVERIFIED (bundle) |
+| A Claude Code sender paces its sends to one target | OFFICIAL |
+| A blank or invalid JSON line is skipped and the rest of the connection is read | OBSERVED |
+| A frame without a string `type` is ignored | OBSERVED |
+| A `type` the receiver does not know is ignored | OBSERVED |
+| A `user` frame with missing, empty or non-string `message.content` is ignored | OBSERVED |
+| A `session_id` mismatch drops the frame silently | OBSERVED |
+| A `msg_id` that is not a UUID is treated as absent | UNVERIFIED (bundle) |
+| A `priority` other than `now`, `next` or `later` reads as `next` | UNVERIFIED (bundle) |
+| An unknown control `action` is logged and ignored | OBSERVED |
+| `rename` has no effect on a `-p` session | OBSERVED |
+| `notify_when_idle` is refused for a missing, own or unvettable `from`, or a `msg_id` that is not a UUID | UNVERIFIED (bundle) |
+| Past 32 subscriptions, or the per-sender limit, the oldest is answered `unavailable` | UNVERIFIED (bundle) |
+| An identical body within 30 seconds is dropped as `duplicate` | OBSERVED (a repeat at 5 s dropped, the same body at 31 s admitted) |
+| Past a bucket of 30 messages refilled at 0.5 per second, a message is `rate-limited` | OBSERVED |
+| A session with 50 accepted messages waiting drops more | OFFICIAL |
+| The receipt reason for that drop is `queue-full` | UNVERIFIED (bundle) |
+| `hop-loop` and `hop-runaway` are not reachable from a local client | UNVERIFIED (bundle) |
+| Drops to one sender are coalesced over 5 seconds, with ids in `dropped_msg_ids` | UNVERIFIED (bundle) |
+| The receiver checks that the process listening at `from` is the one that posted | UNVERIFIED (bundle) |
+| An accepted message produces no receipt | OBSERVED |
+| An accepted message produces no receipt | THIRD-PARTY |
+| `refuse` drops every message | OFFICIAL |
+| `refuse` answers with `expired` and `status_detail: "refused"` | OBSERVED |
+| A refusing session still binds its socket and looks the same from outside | OFFICIAL |
+| `hold` delivers nothing until a later `accept` applies | OFFICIAL |
+| `hold` sends a `held` receipt, and the message expires only when the session exits | OBSERVED |
+| A prompting receiver holds a message whose sender asserts bypass | OFFICIAL |
+| That hold is recorded as `holdCause: mode-mismatch` | OBSERVED |
+| A bypassing receiver holds every message unless its sender asserts bypass too | OFFICIAL |
+| A receiver that cannot tell its own permission mode holds | UNVERIFIED (bundle) |
+| In an interactive terminal a held message opens a dialog | OBSERVED |
+| A `-p` session has no dialog and drops a default-held message at the deadline, reporting `expired` | OFFICIAL |
+| A held message is dropped past `dialogExpiry`, and at most 100 are held, the oldest dropped first | OFFICIAL |
+| The `expired` receipt covers a deadline, a full hold buffer and an exit with a message held | OBSERVED (at session exit) |
+| The user's answer to the dialog sends `denied` or `delivered` | OBSERVED |

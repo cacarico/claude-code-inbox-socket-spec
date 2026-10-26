@@ -4,6 +4,8 @@ Which Claude Code versions this spec was checked against, and what changed.
 
 ## Changes to this document
 
+- Add section 15, every way a connection or a frame fails and what the sender
+  sees, with an evidence table.
 - Add CONTRIBUTING.md, which says how the document is written.
 - Add section 0, the status, versions, conventions and terminology of the
   document, with the tag definitions moved into it as 0.5.
