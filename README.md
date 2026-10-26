@@ -11,8 +11,9 @@ user can enter. A client connects, writes one JSON object per line and closes
 its write side. A `user` frame carries text. A busy session reads it between
 tool calls; an idle one starts a new turn with it. The model sees the text
 marked as coming from another Claude session, never as the user's own words.
-Nothing comes back on that connection. Receipts for held, refused or dropped
-messages arrive on a socket of the sender's own, if the sender named one.
+Nothing comes back on that connection. Receipts for held, denied, refused,
+dropped or expired messages arrive on a socket of the sender's own, if the
+sender named one.
 
 Anthropic documents the environment variables, the auth line and the delivery
 rules. The frame itself is not documented and not a public interface. It was
