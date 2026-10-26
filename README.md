@@ -24,6 +24,12 @@ down with every statement tagged by how it is known, and
 
 Unofficial. Not affiliated with or endorsed by Anthropic.
 
+![A script posts "build 482 green" to an idle Claude Code session, which wakes and answers; then a detached waiter.py tells the session its test run finished](demo/inbox.svg)
+
+Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
+`./run-tests` stands in for a slow test suite. To replay it in a terminal:
+`asciinema play demo/inbox.cast`.
+
 ## Quick start
 
 From a Bash tool call or a hook, post to the session you are in:
