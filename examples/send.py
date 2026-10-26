@@ -244,8 +244,11 @@ def main():
         wait = args.receipts if args.receipts is not None else 600
         for frame in reply.frames(wait):
             print(json.dumps(frame))
-            if frame.get("action") == "peer_message_status" and frame.get("status") in ("held", "expired", "denied", "dropped", "refused"):
-                rc = 3
+            if frame.get("action") == "peer_message_status":
+                if frame.get("status") in ("held", "expired", "denied", "dropped", "refused"):
+                    rc = 3
+                elif frame.get("status") == "delivered":
+                    rc = 0  # a held message was approved after all
             if frame.get("action") == "peer_idle_notice" and frame.get("orig_msg_id") == notify_id:
                 break
         reply.close()
