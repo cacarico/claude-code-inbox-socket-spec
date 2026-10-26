@@ -10,6 +10,7 @@ Claude Code upgrade to see which statements in SPEC.md still hold.
     python3 conformance/check.py --quick         # skip the rules that wait 30 s (R13, R18) and the extra sessions
     python3 conformance/check.py --model sonnet  # another model for the throwaway sessions
     python3 conformance/check.py --log           # also write conformance/runs/<version>-<os>.txt
+    python3 conformance/check.py --bypass        # also run R20 against a session in bypassPermissions mode
 
 The sessions run under your normal Claude Code login, in a fresh temporary directory
 under this folder's .tmp/, with no tools allowed. Do not point it at a session you
@@ -290,6 +291,8 @@ def main():
     ap.add_argument("--model", default="haiku")
     ap.add_argument("--quick", action="store_true", help="skip the rules that wait 30 s (R13, R18) and the hold/refuse/own-child sessions")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--bypass", action="store_true",
+                    help="run R20: start a throwaway session with --permission-mode bypassPermissions (no tools, empty directory)")
     ap.add_argument("--log", nargs="?", const="", metavar="FILE",
                     help="write the results to FILE, by default conformance/runs/<version>-<os>.txt")
     args = ap.parse_args()
@@ -540,6 +543,34 @@ def run(args, version):
             report("R16 own child (SessionStart hook) posting with the token is delivered", "PASS" if O.wait_text("ACK C16", 60) else "FAIL")
             report("R16b own child posting without the token is delivered (process evidence)", "PASS" if O.wait_text("ACK C16B", 60) else "FAIL")
             O.stop()
+
+        # R20 a bypassing receiver: R19 and R19b again, against a session in bypassPermissions mode. It
+        # runs only on request, because it starts a session that skips permission prompts; the session
+        # still has no tools and works in the same empty directory as the others.
+        r20 = ("R20 a bypassing receiver delivers an envelope asserting from-mode=bypass, no receipt",
+               "R20b a bypassing receiver holds a frame that asserts no permission class: `held` receipt, nothing delivered")
+        if not args.bypass:
+            for rule in r20:
+                report(rule, "SKIP", "needs --bypass")
+        else:
+            B = Session(cwd, args.model, ["--permission-mode", "bypassPermissions"], "bypass")
+            sessions.append(B)
+            rp20 = Reply(os.path.dirname(B.sock), "-%08x" % (uuid.uuid4().int & 0xFFFFFFFF))
+            replies.append(rp20)
+            text = "C20 Reply exactly: ACK C20"
+            m = B.msg('<cross-session-message from="%s" from-name="conformance" from-mode="bypass">\n%s\n</cross-session-message>'
+                      % (rp20.address, text), rp20)
+            B.send([m])
+            got = B.wait_text("ACK C20", 45)
+            r = rp20.wait(lambda f: f.get("orig_msg_id") == m["msg_id"], 4)
+            report(r20[0], "PASS" if got and r is None else "FAIL", json.dumps(r) if r else ("" if got else "not delivered"))
+            m = B.msg("C20b Reply exactly: ACK C20B", rp20)
+            B.send([m])
+            r = rp20.wait(lambda f: f.get("orig_msg_id") == m["msg_id"], 20)
+            delivered = B.wait_text("ACK C20B", 6)
+            report(r20[1], "PASS" if r and r.get("status") == "held" and not delivered else "FAIL",
+                   json.dumps(r) if r else ("delivered" if delivered else "no receipt"))
+            B.stop()
     finally:
         for s in sessions:
             try:
