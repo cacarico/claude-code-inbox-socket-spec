@@ -46,6 +46,25 @@ for a command or a file, then nudges the session it was started from.
 `python3 conformance/check.py` prints a pass or fail per rule for your Claude
 Code; it starts throwaway `claude -p` sessions, which cost a few cents.
 
+## Security
+
+- Any process running as your OS user can post; nothing else on the machine
+  can. On macOS and Linux no token is needed.
+- The sender's name, reply address and permission class are what the sender
+  writes. A bypassing session's hold gate trusts the class it is told.
+- A message cannot approve a permission prompt or run a slash command, but it
+  acts with whatever the session may do without asking. A `priority: "now"`
+  frame closes an open permission prompt as if you had said no.
+- Do not paste CI logs, issue titles or other text you do not control into a
+  message: it reaches the model as a request. Post a fixed line and let the
+  session read the log.
+- No receipt means accepted, unless you named no reply socket: then a held
+  message looks the same. Use `send.py --receipts` when nobody watches the
+  receiving session.
+
+Details and how each point is known: [SPEC.md section 14](SPEC.md#14-security).
+`crossSessionInbound: "refuse"` turns it off.
+
 ## License and credits
 
 MIT, see [LICENSE](LICENSE). Sources: the official
