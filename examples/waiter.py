@@ -26,7 +26,13 @@ import sys
 import time
 
 
-def post(sock_path, token, text, priority="next"):
+def post(sock_path, token, text, priority="next", from_name=""):
+    if from_name:
+        # The envelope gives the message a sender name. An interactive session then
+        # shows it as a one-line `Message from @<name>` preview instead of the full
+        # wrapper text it shows for a bare frame.
+        name = from_name.replace('"', "").replace("<", "").replace(">", "")
+        text = '<cross-session-message from-name="%s">\n%s\n</cross-session-message>' % (name, text)
     frames = []
     if token:
         frames.append({"type": "auth", "token": token})
@@ -66,6 +72,7 @@ def main():
     ap.add_argument("--message", help="text to post (default: a line about what finished)")
     ap.add_argument("--priority", choices=["now", "next", "later"], default="next",
                     help="keep next; now also closes an open permission prompt as if the user said no")
+    ap.add_argument("--from-name", default="waiter", help="sender name shown by the session (default: waiter); empty sends a bare frame")
     ap.add_argument("--detach", action="store_true")
     ap.add_argument("--socket", default=os.environ.get("CLAUDE_CODE_MESSAGING_SOCKET"))
     ap.add_argument("--token", default=os.environ.get("CLAUDE_CODE_MESSAGING_TOKEN"))
@@ -97,12 +104,12 @@ def main():
         time.sleep(args.sleep)
         what = "%ds passed" % args.sleep
 
-    text = args.message or ("waiter: " + what)
+    text = args.message or (what if args.from_name else "waiter: " + what)
     if not os.path.exists(args.socket):
         # The session is gone; nothing to wake.
         return 1
     try:
-        post(args.socket, args.token, text, args.priority)
+        post(args.socket, args.token, text, args.priority, args.from_name)
     except OSError as e:
         print("waiter.py: cannot post to %s: %s" % (args.socket, e), file=sys.stderr)
         return 1

@@ -241,6 +241,11 @@ the build is green
   `body`. OBSERVED. The `from` attribute is what gives the model a reply
   address: with a bare frame the model has none, even if the frame's own `from`
   field is set. OBSERVED (the model said so).
+- On screen, an interactive session shows an enveloped message that carries a
+  `from-name` as a one-line preview, `› Message from @<name>: <first line>
+  (ctrl+o to expand)`. A bare frame that starts a turn is shown as the full
+  wrapper of section 5.1 instead. OBSERVED (both, 2.1.310); the bare-frame
+  display is reported as [anthropics/claude-code#93720](https://github.com/anthropics/claude-code/issues/93720).
 - `from-mode` is how a sender "identifies itself as bypassing permission
   prompts" in the delivery rules of section 9. OBSERVED: an envelope asserting
   `from-mode="bypass"`, posted to a prompting receiver, was held with the
