@@ -20,14 +20,14 @@ How much of each section rests on which kind of evidence, counted as section
 | [6 Control frames](#6-control-frames) | the control actions and their limits | 1 | 7 | 0 | 4 |
 | [7 Receipt frames](#7-receipt-frames) | the receipts the receiver sends and to whom | 0 | 9 | 1 | 4 |
 | [8 Delivery rules](#8-delivery-rules) | when a message is read, priorities and the queue | 3 | 6 | 1 | 2 |
-| [9 Inbound controls](#9-inbound-controls) | `crossSessionInbound`, permission classes and the own-child exception | 12 | 7 | 0 | 2 |
+| [9 Inbound controls](#9-inbound-controls) | `crossSessionInbound`, permission classes and the own-child exception | 12 | 8 | 0 | 2 |
 | [10 Limits](#10-limits) | every numeric limit in one table | 5 | 4 | 0 | 4 |
 | [11 `claude -p` and bare mode](#11-claude--p-and-bare-mode) | `-p` sessions and bare mode | 4 | 3 | 0 | 1 |
 | [12 Platform notes](#12-platform-notes) | macOS, Windows, containers and sandboxes | 5 | 1 | 0 | 1 |
 | [13 A minimal client](#13-a-minimal-client) | the steps of a minimal client | 0 | 0 | 0 | 0 |
-| [14 Security](#14-security) | who can post, what a sender can claim and what it cannot do | 8 | 8 | 0 | 2 |
-| [15 Error handling](#15-error-handling) | every way a connection or a frame fails, and what the sender sees | 13 | 23 | 1 | 12 |
-| total |  | 67 | 109 | 12 | 54 |
+| [14 Security](#14-security) | who can post, what a sender can claim and what it cannot do | 8 | 9 | 0 | 1 |
+| [15 Error handling](#15-error-handling) | every way a connection or a frame fails, and what the sender sees | 13 | 24 | 1 | 12 |
+| total |  | 67 | 112 | 12 | 53 |
 
 ## 0. About this document
 
@@ -464,7 +464,7 @@ OFFICIAL:
   default `-p` session delivers frames that assert no class, and that a bypass
   assertion to a prompting session is held (`holdCause: mode-mismatch`).
 - A **bypassing** receiver holds every message, except one whose sender
-  identifies itself as bypassing too. OFFICIAL. Not OBSERVED here.
+  identifies itself as bypassing too. OFFICIAL; OBSERVED (R20, R20b).
 - The sender's class is the `from-mode` attribute of the envelope (section
   5.2). OBSERVED for `bypass` (held) and `prompting` (delivered) at a prompting
   receiver. A socket post the receiver cannot verify as its own child is
@@ -576,8 +576,8 @@ What the socket lets a process do, and what it does not:
   unless the sender says it is bypassing too (OFFICIAL), and saying so is the
   `from-mode` attribute (section 5.2). So any process of your user that writes
   `from-mode="bypass"` reaches a bypassing session without the dialog.
-  UNVERIFIED: follows from the two statements above; a bypassing receiver was
-  not run here.
+  OBSERVED (R20): a `-p` session in `bypassPermissions` mode delivered such a
+  frame with no hold and no receipt.
 - **What a message cannot do.** It cannot approve a permission prompt, change
   configuration or run a slash command, and the session's own permission
   prompts and rules apply to whatever it asks for. OFFICIAL. The model is told
@@ -729,6 +729,7 @@ or `delivered`.
 | A prompting receiver holds a message whose sender asserts bypass | OFFICIAL |
 | That hold is recorded as `holdCause: mode-mismatch` | OBSERVED |
 | A bypassing receiver holds every message unless its sender asserts bypass too | OFFICIAL |
+| The same, at a `-p` receiver in `bypassPermissions` mode | OBSERVED (R20, R20b) |
 | A receiver that cannot tell its own permission mode holds | UNVERIFIED (bundle) |
 | In an interactive terminal a held message opens a dialog | OBSERVED |
 | A `-p` session has no dialog and drops a default-held message at the deadline, reporting `expired` | OFFICIAL |
