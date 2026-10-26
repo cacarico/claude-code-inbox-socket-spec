@@ -256,7 +256,7 @@ the build is green
 ## 6. Control frames
 
 ```json
-{"msgV":1,"msg_id":"…","type":"control","action":"<action>", … ,"session_id":"…"}
+{"msgV":1,"msg_id":"9d2b6c1e-3a47-4f08-b5e1-7c0a8f3d4e62","type":"control","action":"rename","name":"api-worker","session_id":"2a191324-a7b9-431f-85b4-9a1773eeea24"}
 ```
 
 `session_id` is checked the same way as on a message frame. OBSERVED for
@@ -284,7 +284,7 @@ A receipt is a control frame the receiver sends, on a new connection, to the
 `from` address of the frame it is about:
 
 ```json
-{"type":"control","action":"peer_message_status","status":"held","reason":"Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).","from":"uds:/run/user/1000/cc-socks/12345.sock","orig_msg_id":"4b7e0f3a-…","msgV":1,"msg_id":"…"}
+{"type":"control","action":"peer_message_status","status":"held","reason":"Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).","from":"uds:/run/user/1000/cc-socks/12345.sock","orig_msg_id":"4b7e0f3a-6f4b-4c1e-9f6d-2a1c7e5b9d10","msgV":1,"msg_id":"c81f5a07-2d3e-4b96-a0f4-5e7d9b3c1a28"}
 ```
 
 | `status` | when | extra fields | tag |
@@ -451,13 +451,13 @@ when present, else the connecting pid. UNVERIFIED (bundle).
    `expired`, `denied` or `dropped` means the model did not get it.
 
 `examples/send.py` is this in code. `conformance/check.py` holds the checks
-behind the OBSERVED tags that a headless `-p` session can show; the rest (the
+behind the observed statements that a headless `-p` session can show; the rest (the
 interactive hold dialog, the fallback socket directories, the refill rate) were
 run by hand and are listed in `CHANGELOG.md`.
 
 ## 14. Security
 
-What the socket lets a process do, and what it does not.
+What the socket lets a process do, and what it does not:
 
 - **Who can post.** Any process running as your OS user, and nothing else on
   the machine: the socket is `0600` in a `0700` directory. OFFICIAL; OBSERVED
