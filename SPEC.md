@@ -280,7 +280,7 @@ A receipt is a control frame the receiver sends, on a new connection, to the
 | `expired` | a held message was dropped: dialog deadline passed, hold buffer full, or the session shut down with it held | | OBSERVED (held message settled as `expired` at session exit) |
 | `expired` + `status_detail: "refused"` | the session refuses peer messages (`crossSessionInbound: refuse`, or a policy) | `status_detail` | OBSERVED |
 | `delivered` | a previously held message was approved and released | | OBSERVED (approved in the interactive hold dialog; the message then started a turn; `reason`: "Your previously-held message was approved and released to the recipient's Claude session.") |
-| `dropped` | the inbox guard dropped it | `drop_reason`: `duplicate`, `rate-limited`, `hop-loop`, `hop-runaway` or `queue-full`; `dropped_msg_ids`: other ids coalesced into this receipt | OBSERVED for `duplicate` and `rate-limited`; `queue-full`, `hop-loop` and `hop-runaway` UNVERIFIED (bundle). The two hop reasons are not reachable from a local client: they run only when the sender's pid is not kernel-verified, and a local socket connection always is |
+| `dropped` | the inbox guard dropped it | `drop_reason`: `duplicate`, `rate-limited`, `hop-loop`, `hop-runaway` or `queue-full`; `dropped_msg_ids`: other ids coalesced into this receipt | OBSERVED for `duplicate` and `rate-limited`. `queue-full`, `hop-loop` and `hop-runaway`: the two hop reasons are not reachable from a local client, since they run only when the sender's pid is not kernel-verified, and a local socket connection always is. UNVERIFIED (bundle) |
 
 Rules:
 
@@ -431,5 +431,7 @@ when present, else the connecting pid. UNVERIFIED (bundle).
 4. If you set `from`, listen there. No frame means accepted. `held`,
    `expired`, `denied` or `dropped` means the model did not get it.
 
-`examples/send.py` is this in code; `conformance/check.py` holds the checks
-behind every OBSERVED tag.
+`examples/send.py` is this in code. `conformance/check.py` holds the checks
+behind the OBSERVED tags that a headless `-p` session can show; the rest (the
+interactive hold dialog, the fallback socket directories, the refill rate) were
+run by hand and are listed in `CHANGELOG.md`.
