@@ -4,6 +4,8 @@ Which Claude Code versions this spec was checked against, and what changed.
 
 ## Changes to this document
 
+- Mark the hold rule for a bypassing receiver as observed in sections 9, 14
+  and 15, from a logged run against a `-p` session in `bypassPermissions` mode.
 - Add section 15, every way a connection or a frame fails and what the sender
   sees, with an evidence table.
 - Add CONTRIBUTING.md, which says how the document is written.
