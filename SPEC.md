@@ -7,7 +7,91 @@ Claude Code 2.1.310.
 Unofficial. The frame is an internal interface and can change in any release.
 Run `conformance/check.py` after an upgrade before trusting a line below.
 
-## Tags
+How much of each section rests on which kind of evidence, counted as section
+0.5 says:
+
+| section | covers | OFFICIAL | OBSERVED | THIRD-PARTY | UNVERIFIED |
+|---|---|---|---|---|---|
+| [1 Transport](#1-transport) | the socket, its path, its permissions and when it exists | 4 | 8 | 0 | 6 |
+| [2 Discovery](#2-discovery) | environment variables, `/status` and the session registry | 2 | 7 | 3 | 2 |
+| [3 Line framing](#3-line-framing) | one JSON object per line, the line cap and the first-line deadline | 3 | 8 | 1 | 3 |
+| [4 The auth frame](#4-the-auth-frame) | the optional auth line and the two tokens | 5 | 3 | 0 | 2 |
+| [5 The message frame](#5-the-message-frame) | the `user` frame, what the model sees and the sender envelope | 2 | 15 | 5 | 9 |
+| [6 Control frames](#6-control-frames) | the control actions and their limits | 1 | 7 | 0 | 4 |
+| [7 Receipt frames](#7-receipt-frames) | the receipts the receiver sends and to whom | 0 | 9 | 1 | 4 |
+| [8 Delivery rules](#8-delivery-rules) | when a message is read, priorities and the queue | 3 | 6 | 1 | 2 |
+| [9 Inbound controls](#9-inbound-controls) | `crossSessionInbound`, permission classes and the own-child exception | 12 | 7 | 0 | 2 |
+| [10 Limits](#10-limits) | every numeric limit in one table | 5 | 4 | 0 | 4 |
+| [11 `claude -p` and bare mode](#11-claude--p-and-bare-mode) | `-p` sessions and bare mode | 4 | 3 | 0 | 1 |
+| [12 Platform notes](#12-platform-notes) | macOS, Windows, containers and sandboxes | 5 | 1 | 0 | 1 |
+| [13 A minimal client](#13-a-minimal-client) | the steps of a minimal client | 0 | 0 | 0 | 0 |
+| [14 Security](#14-security) | who can post, what a sender can claim and what it cannot do | 8 | 8 | 0 | 2 |
+| total |  | 54 | 86 | 11 | 42 |
+
+## 0. About this document
+
+### 0.1 Status
+
+This document is descriptive. It records what Claude Code 2.1.310 does on
+Linux, as seen from outside and as read in the shipped bundle, and it binds
+nobody. The source of truth is the running Claude Code: where the two differ,
+the binary is right and the document has a bug. Anthropic documents the
+environment variables, the auth line and the delivery rules; the frame itself
+is an internal interface.
+
+### 0.2 Versions
+
+Four things carry a version. The frame has `msgV`, which is 1. Each registry
+record has `peerProtocol`, which is 1, and `peerFeatures`, a list of optional
+features. The document was checked against Claude Code 2.1.310; Anthropic's
+documentation gives the floors 2.1.224 (macOS and Linux), 2.1.234 (native
+Windows), 2.1.236 (the idle notice) and 2.1.248 (third-party providers), and
+`CHANGELOG.md` lists them with the run. The document's own revisions are in
+the "Changes to this document" section of `CHANGELOG.md`.
+
+When `claude --version` reports something newer than 2.1.310, run
+`make conformance` and read `CHANGELOG.md` before trusting a line below.
+
+### 0.3 Conventions
+
+The receiver is the Claude Code session that owns the socket. The sender, or
+client, is the process that connects to it. Plain indicative sentences describe
+the receiver. "Must" and "should" appear only in instructions to a client
+(sections 13 and 14) and mean what they mean in ordinary English; the document
+uses none of the RFC 2119 keywords, because it is not normative. Numbers are
+decimal unless written `0x`. A path shown with `<pid>` is a pattern.
+
+### 0.4 Terminology
+
+| term | meaning | section |
+|---|---|---|
+| session | one running Claude Code process, interactive or `-p` | 1 |
+| receiver | the session that owns the socket and reads from it | 0.3 |
+| sender | the process that connects and writes; also called the client | 0.3 |
+| inbox | the socket a session binds to take messages from other processes | 1 |
+| socket path | the file system path of the inbox | 1 |
+| registry record | the file `<config dir>/sessions/<pid>.json` that describes a session | 2 |
+| frame | one JSON object sent to the receiver | 3 |
+| line | one frame followed by `\n` | 3 |
+| auth line | the optional first line of a connection, a frame of type `auth` | 4 |
+| child token | the secret exported to a session's own hooks and commands | 4 |
+| peer token | the secret in the registry key file, for other sessions | 4 |
+| message frame | a frame of type `user`, which carries text for the model | 5 |
+| control frame | a frame of type `control`, which carries an action | 6 |
+| receipt | a control frame the receiver sends about a message it did not deliver | 7 |
+| notice | the `peer_idle_notice` control frame, sent when a watched session is idle | 6 |
+| envelope | the `<cross-session-message>` wrapper inside `content` that names the sender | 5.2 |
+| reply address | the `from` field: `uds:` and the path of a socket the sender listens on | 5 |
+| own child | a process the receiver can verify descends from itself | 9 |
+| permission class | bypassing or prompting, the receiver's and the sender's | 9 |
+| inbound control | the `crossSessionInbound` setting: `accept`, `hold` or `refuse` | 9 |
+| hold | keeping a message undelivered until the user approves it or a deadline passes | 9 |
+| guard | the receiver's drop rules for repeats, rate, queue size and relay loops | 10 |
+| queue | where accepted message frames wait to be read | 8 |
+| priority | the `priority` field of a message frame: `now`, `next` or `later` | 5 |
+| turn | one pass in which the model reads its input and answers | 8 |
+
+### 0.5 Tags
 
 Every statement says how it is known:
 
@@ -21,6 +105,18 @@ Every statement says how it is known:
   which read 2.1.233.
 - **UNVERIFIED**: not run. "UNVERIFIED (bundle)" means read in the JavaScript
   bundled in the 2.1.310 binary.
+
+The tags are counted, and the counts are in the table at the top of this file.
+A count is the number of times a tag word appears in a section's text, outside
+fenced code blocks, as a whole word and not directly after "Not" or "not".
+"UNVERIFIED (bundle)" counts as UNVERIFIED. A sentence with two tags counts
+once for each, and a tag in a table's tag column counts like one in prose.
+Sections 1 to 16 are counted; this section describes the document and is not.
+`python3 tests/spec_table.py` recomputes the counts and `make check` runs it.
+
+A tag goes at the end of the sentence it covers, as a sentence of its own, with
+a rule id or a source in parentheses when there is one: `OBSERVED (R13).` Two
+tags for one claim are joined with a semicolon: `OFFICIAL; OBSERVED (R02).`
 
 ## 1. Transport
 
@@ -256,7 +352,7 @@ the build is green
 ## 6. Control frames
 
 ```json
-{"msgV":1,"msg_id":"…","type":"control","action":"<action>", … ,"session_id":"…"}
+{"msgV":1,"msg_id":"9d2b6c1e-3a47-4f08-b5e1-7c0a8f3d4e62","type":"control","action":"rename","name":"api-worker","session_id":"2a191324-a7b9-431f-85b4-9a1773eeea24"}
 ```
 
 `session_id` is checked the same way as on a message frame. OBSERVED for
@@ -284,7 +380,7 @@ A receipt is a control frame the receiver sends, on a new connection, to the
 `from` address of the frame it is about:
 
 ```json
-{"type":"control","action":"peer_message_status","status":"held","reason":"Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).","from":"uds:/run/user/1000/cc-socks/12345.sock","orig_msg_id":"4b7e0f3a-…","msgV":1,"msg_id":"…"}
+{"type":"control","action":"peer_message_status","status":"held","reason":"Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).","from":"uds:/run/user/1000/cc-socks/12345.sock","orig_msg_id":"4b7e0f3a-6f4b-4c1e-9f6d-2a1c7e5b9d10","msgV":1,"msg_id":"c81f5a07-2d3e-4b96-a0f4-5e7d9b3c1a28"}
 ```
 
 | `status` | when | extra fields | tag |
@@ -451,13 +547,13 @@ when present, else the connecting pid. UNVERIFIED (bundle).
    `expired`, `denied` or `dropped` means the model did not get it.
 
 `examples/send.py` is this in code. `conformance/check.py` holds the checks
-behind the OBSERVED tags that a headless `-p` session can show; the rest (the
+behind the observed statements that a headless `-p` session can show; the rest (the
 interactive hold dialog, the fallback socket directories, the refill rate) were
 run by hand and are listed in `CHANGELOG.md`.
 
 ## 14. Security
 
-What the socket lets a process do, and what it does not.
+What the socket lets a process do, and what it does not:
 
 - **Who can post.** Any process running as your OS user, and nothing else on
   the machine: the socket is `0600` in a `0700` directory. OFFICIAL; OBSERVED

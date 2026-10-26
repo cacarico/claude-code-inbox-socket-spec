@@ -2,6 +2,16 @@
 
 Which Claude Code versions this spec was checked against, and what changed.
 
+## Changes to this document
+
+- Add CONTRIBUTING.md, which says how the document is written.
+- Add section 0, the status, versions, conventions and terminology of the
+  document, with the tag definitions moved into it as 0.5.
+- Add the summary table at the top of SPEC.md, one row per section with the
+  count of each tag, and run its check in `make check`.
+- Complete the example frames in sections 6 and 7.
+- Add a per-section tag count table and the script that checks it.
+
 ## 2.1.310, checked 2026-10-26 on Linux
 
 `conformance/check.py`: 26 rules, all pass.
