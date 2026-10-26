@@ -63,6 +63,7 @@ it fits. The socket is for what it does not cover.
 | Permission prompts | a message cannot approve one | allowlisted senders can approve or deny, if the plugin relays them |
 | `claude -p` | yes | yes |
 
+## Security
 
 - Any process running as your OS user can post; nothing else on the machine
   can. On macOS and Linux no token is needed.
