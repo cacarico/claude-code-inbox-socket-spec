@@ -1,56 +1,76 @@
 # Claude Code inbox socket
 
-Every Claude Code session listens on a private Unix socket (a named pipe on
-Windows). Other sessions on the machine use it to message each other. Anything
-that can write a line of JSON to a socket can use it too: a CI job, a file
-watcher, a script that waits for a slow command and then wakes the session that
-started it.
-
-The socket is named after the session's process id, in a directory only your
-user can enter. A client connects, writes one JSON object per line and closes
-its write side. A `user` frame carries text. A busy session reads it between
-tool calls; an idle one starts a new turn with it. The model sees the text
-marked as coming from another Claude session, never as the user's own words.
-Nothing comes back on that connection. Receipts for held, denied, refused,
-dropped or expired messages, and for a held message later delivered, arrive on
-a socket of the sender's own, if the sender named one.
-
-Anthropic documents the environment variables, the auth line and the delivery
-rules. The frame itself is not documented and not a public interface. It was
-read out of the shipped binary and checked live. [SPEC.md](SPEC.md) writes it
-down with every statement tagged by how it is known, and
-[conformance/check.py](conformance/check.py) re-checks it against the
-`claude --version` you have.
+Every running Claude Code session listens on a Unix socket (a named pipe on
+Windows). Write a line of JSON to it and the session reads it, starting a new
+turn if it was idle.
 
 Unofficial. Not affiliated with or endorsed by Anthropic.
+
+A session that waits on CI, a deploy or a long test run has no way to hear
+that it finished; you come back and tell it. Claude Code's sessions already
+message each other through this socket, and a script can too. The line format
+is not documented, so this repo writes it down and checks it. Anthropic's
+supported route, Channels, needs a plugin and a flag; see
+[the comparison](#socket-or-channels).
+
+```sh
+# from a hook or a Bash command inside the session
+printf '%s\n' '{"type":"user","message":{"content":"CI: build 482 is green"}}' \
+  | nc -N -U "$CLAUDE_CODE_MESSAGING_SOCKET"
+```
 
 ![A script posts "build 482 green" to an idle Claude Code session, which wakes and answers; then a detached waiter.py tells the session its test run finished](demo/inbox.svg)
 
 Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
-`./run-tests` stands in for a slow test suite. To replay it in a terminal:
+`./run-tests` stands in for a slow test suite. Replay it in a terminal with
 `asciinema play demo/inbox.cast`.
 
-## Quick start
+## What is here
 
-From a Bash tool call or a hook, post to the session you are in:
+- [SPEC.md](SPEC.md): the socket, the frames, receipts, delivery rules and
+  limits, with every statement tagged OFFICIAL, OBSERVED, THIRD-PARTY or
+  UNVERIFIED by how it is known.
+- [conformance/check.py](conformance/check.py): re-checks the spec against the
+  `claude --version` you have. It starts throwaway `claude -p` sessions, which
+  cost a few cents.
+- [examples/](examples): `send.py` and `send.sh` post a message;
+  `waiter.py` waits for a command or a file, then nudges its own session.
+- [CHANGELOG.md](CHANGELOG.md): which versions were checked, and what changed.
 
-```sh
-printf '%s\n' '{"type":"user","message":{"content":"hello from a script"}}' \
-  | nc -N -U "$CLAUDE_CODE_MESSAGING_SOCKET"       # or: socat - UNIX-CONNECT:"$CLAUDE_CODE_MESSAGING_SOCKET"
-```
+## How it works
+
+The socket is named after the session's process id, in a directory only your
+user can enter (`$XDG_RUNTIME_DIR/cc-socks/<pid>.sock` on Linux). Claude Code
+exports its path to hooks and Bash commands as `CLAUDE_CODE_MESSAGING_SOCKET`
+and lists every session in `~/.claude/sessions/<pid>.json` (under
+`$CLAUDE_CONFIG_DIR` when that is set).
+
+A client connects, writes one JSON object per line and closes its write side.
+A `user` frame carries text. A busy session reads it between tool calls; an
+idle one starts a new turn with it. The model sees the text marked as coming
+from another Claude session, never as your own words. Nothing comes back on
+that connection. Receipts for held, denied, refused, dropped or expired
+messages, and for a held message later delivered, arrive on a socket of the
+sender's own, if the sender named one.
+
+Anthropic documents the environment variables, the auth line and the delivery
+rules. The frame itself is not documented and not a public interface. It was
+read out of the shipped binary and checked live.
+
+## Use it
 
 From anywhere on the machine, standard library only:
 
 ```sh
 python3 examples/send.py --list                      # live sessions and their sockets
-python3 examples/send.py --name my-session "the build is green"
-python3 examples/send.py --socket /run/user/1000/cc-socks/12345.sock --receipts 10 "hello"
+python3 examples/send.py --name api-worker --from-name ci "build 482 green, 214 passed"
+python3 examples/send.py --pid 12345 --receipts 10 "hello"   # and wait 10 s for receipts
 ```
 
-`examples/send.sh` does the same with nc or socat. `examples/waiter.py` waits
-for a command or a file, then nudges the session it was started from.
-`python3 conformance/check.py` prints a pass or fail per rule for your Claude
-Code; it starts throwaway `claude -p` sessions, which cost a few cents.
+`--from-name` gives the message a sender, shown as one line in the session.
+Inside a session, `python3 examples/waiter.py --detach -- make test` returns at
+once and wakes the session when `make test` exits. `examples/send.sh` posts
+with nc or socat.
 
 ## Socket or Channels?
 
