@@ -17,7 +17,11 @@ care about: it renames nothing, but it does post prompts.
 Why some rules read the session's output: an accepted message produces no receipt,
 so delivery is checked through the session itself, in its stream-json output and in
 its transcript file. The receipt path is checked with the cases that do produce one
-(duplicate drop, hold, refuse) and with the idle notice.
+(duplicate and rate-limited drops, hold, refuse) and with the idle notice.
+
+The rules that load the session (the rate burst, the duplicate window) run last,
+each on a reply socket of its own: the `from` address is the sender key for the
+rate bucket and the duplicate window, so a fresh socket is a fresh bucket.
 """
 import argparse
 import json
@@ -60,10 +64,13 @@ def clean_env():
 
 
 class Reply:
-    """Our reply socket, beside the target's, for receipts and notices."""
+    """Our reply socket, beside the target's, for receipts and notices.
 
-    def __init__(self, sock_dir):
-        self.path = os.path.join(sock_dir, "%d.sock" % os.getpid())
+    `suffix` names a second socket of this process, `<pid>-<8 hex>.sock`, one of the
+    forms the receiver sends receipts to; its address is a distinct sender key."""
+
+    def __init__(self, sock_dir, suffix=""):
+        self.path = os.path.join(sock_dir, "%d%s.sock" % (os.getpid(), suffix))
         if os.path.exists(self.path):
             os.unlink(self.path)
         self.srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -218,8 +225,9 @@ class Session:
         f.update(kw)
         return f
 
-    def transcript_has(self, marker, timeout=20):
-        """The session's transcript holds a user line with the marker, with a peer origin."""
+    def transcript_has(self, marker, timeout=20, msg_id=None):
+        """The session's transcript holds a user line with the marker, with a peer origin.
+        With `msg_id`, the line must be the one for that frame (origin.msg_id)."""
         end = time.time() + timeout
         while time.time() < end:
             for f in (CONFIG / "projects").glob("*/%s.jsonl" % self.sid):
@@ -228,7 +236,8 @@ class Session:
                         if marker not in line:
                             continue
                         o = json.loads(line)
-                        if o.get("type") == "user" and (o.get("origin") or {}).get("kind") == "peer":
+                        origin = o.get("origin") or {}
+                        if o.get("type") == "user" and origin.get("kind") == "peer" and (msg_id is None or origin.get("msg_id") == msg_id):
                             return o
                 except (OSError, ValueError):
                     pass
@@ -269,7 +278,7 @@ def main():
     tmp_root.mkdir(exist_ok=True)
     cwd = tempfile.mkdtemp(prefix="conformance-", dir=tmp_root)
     sessions = []
-    reply = None
+    replies = []
     try:
         try:
             S = Session(cwd, args.model, label="main")
@@ -278,6 +287,7 @@ def main():
             return 1
         sessions.append(S)
         reply = Reply(os.path.dirname(S.sock))
+        replies.append(reply)
 
         # R01 discovery
         ok = bool(S.sock) and os.path.exists(S.sock) and (SESS_DIR / ("%d.json" % S.p.pid)).exists()
@@ -328,43 +338,6 @@ def main():
         time.sleep(2)
         report("R07c the first copy was delivered once", "PASS" if sum("ACK C07" in t for t in S.texts) == 1 else "FAIL", "%d" % sum("ACK C07" in t for t in S.texts))
 
-        # R17 rate bucket: a burst of distinct bodies from one sender is admitted up to 30, the 31st is rate-limited.
-        # The guard runs at admission, so the receipt comes back without the model reading the queue.
-        del reply.frames[:]
-        rl_ids = []
-        for i in range(34):
-            m = S.msg("C17 rate %s %02d" % (uuid.uuid4().hex[:4], i), reply)
-            rl_ids.append(m["msg_id"])
-            S.send([m])
-        time.sleep(3)
-        dropped = {}
-        for f in reply.frames:
-            if f.get("action") == "peer_message_status" and f.get("status") == "dropped":
-                for mid in ([f.get("orig_msg_id")] if f.get("orig_msg_id") else []) + (f.get("dropped_msg_ids") or []):
-                    dropped[mid] = f.get("drop_reason")
-        first_rl = next((i for i, mid in enumerate(rl_ids) if dropped.get(mid) == "rate-limited"), None)
-        report("R17 a burst from one sender is admitted up to a bucket of 30; the 31st is dropped with drop_reason=rate-limited",
-               "PASS" if first_rl is not None and first_rl >= 30 else "FAIL", "first rate-limited at index %s" % first_rl)
-
-        # R18 duplicate window: an identical body is dropped inside the window and admitted again past 30 s.
-        if args.quick:
-            report("R18 an identical repeat within 30 s is dropped; the same body after the window is admitted", "SKIP", "--quick")
-        else:
-            del reply.frames[:]
-            body = "C18 dup window %s" % uuid.uuid4().hex[:6]
-            a = S.msg(body, reply); S.send([a]); t_first = time.time()
-            time.sleep(5)
-            b = S.msg(body, reply); S.send([b])
-            d = reply.wait(lambda f: f.get("orig_msg_id") == b["msg_id"] and f.get("status") == "dropped", 12)
-            inside = bool(d) and d.get("drop_reason") == "duplicate"
-            while time.time() - t_first < 31:
-                time.sleep(0.5)
-            del reply.frames[:]
-            c = S.msg(body, reply); S.send([c])
-            d2 = reply.wait(lambda f: f.get("orig_msg_id") == c["msg_id"] and f.get("status") == "dropped", 8)
-            report("R18 an identical repeat within 30 s is dropped; the same body after the window is admitted",
-                   "PASS" if inside and d2 is None else "FAIL", "within=%s after_window_dropped=%s" % (inside, bool(d2)))
-
         # R08 wrong auth token tolerated (not Windows)
         S.send([{"type": "auth", "token": "0" * 32}, {"type": "user", "message": {"content": "C08 Reply exactly: ACK C08"}}])
         report("R08 a wrong auth token does not close the connection on macOS/Linux; the message is still delivered", "PASS" if S.wait_text("ACK C08", 45) else "FAIL")
@@ -407,6 +380,69 @@ def main():
             dt = time.time() - t0
             s.close()
             report("R13 a connection with no complete line is closed after 30 s", "PASS" if closed and 25 <= dt <= 40 else "FAIL", "%.1f s" % dt)
+
+        # The rules below load the session (R17 queues 30 prompts), so they come last. Each runs on a
+        # fresh reply socket: its `from` address is a sender key the rules above never used, so the rate bucket is full and the duplicate window empty when it starts.
+        def fresh_reply():
+            r = Reply(os.path.dirname(S.sock), "-%08x" % (uuid.uuid4().int & 0xFFFFFFFF))
+            replies.append(r)
+            return r
+
+        def drops(rp):
+            """msg_id -> drop_reason over every `dropped` receipt on a reply socket, coalesced ids included."""
+            out = {}
+            for f in list(rp.frames):
+                if f.get("action") == "peer_message_status" and f.get("status") == "dropped":
+                    for mid in ([f.get("orig_msg_id")] if f.get("orig_msg_id") else []) + (f.get("dropped_msg_ids") or []):
+                        out[mid] = f.get("drop_reason")
+            return out
+
+        def dropped_as(rp, mid, timeout):
+            end = time.time() + timeout
+            while True:
+                d = drops(rp)
+                if mid in d or time.time() >= end:
+                    return d.get(mid)
+                time.sleep(0.2)
+
+        # R18 duplicate window: an identical body is dropped inside the window and admitted again past 30 s.
+        if args.quick:
+            report("R18 an identical repeat within 30 s is dropped; the same body after the window is admitted", "SKIP", "--quick")
+        else:
+            rp18 = fresh_reply()
+            body = "C18 dup window %s. Reply exactly: ACK C18" % uuid.uuid4().hex[:6]
+            a = S.msg(body, rp18); S.send([a]); t_first = time.time()
+            time.sleep(5)
+            b = S.msg(body, rp18); S.send([b])
+            inside = dropped_as(rp18, b["msg_id"], 12)
+            first_ok = a["msg_id"] not in drops(rp18)
+            while time.time() - t_first < 31:
+                time.sleep(0.5)
+            c = S.msg(body, rp18); S.send([c])
+            after = dropped_as(rp18, c["msg_id"], 8)
+            shown = S.transcript_has(body, 60, msg_id=c["msg_id"]) if after is None else None
+            report("R18 an identical repeat within 30 s is dropped; the same body after the window is admitted",
+                   "PASS" if first_ok and inside == "duplicate" and after is None and shown else "FAIL",
+                   "first=%s within=%s after_window=%s" % ("admitted" if first_ok else "dropped", inside, "delivered" if shown else (after or "no transcript line")))
+
+        # R17 rate bucket: a burst of distinct bodies from one sender is admitted up to 30, the 31st is rate-limited.
+        # The guard runs at admission, so the receipts come back before the model reads the queue; later drops
+        # may be coalesced into one receipt over a 5 s trail, hence the wait after the first.
+        rp17 = fresh_reply()
+        rl_ids = []
+        for i in range(34):
+            m = S.msg("C17 rate %s %02d. Reply exactly: OK" % (uuid.uuid4().hex[:4], i), rp17)
+            rl_ids.append(m["msg_id"])
+            S.send([m])
+        end = time.time() + 10
+        while time.time() < end and "rate-limited" not in drops(rp17).values():
+            time.sleep(0.2)
+        time.sleep(6)
+        d = drops(rp17)
+        first_rl = next((i for i, mid in enumerate(rl_ids) if d.get(mid) == "rate-limited"), None)
+        early = sum(mid in d for mid in rl_ids[:30])
+        report("R17 a burst from one sender is admitted up to a bucket of 30; the 31st is dropped with drop_reason=rate-limited",
+               "PASS" if first_rl == 30 and early == 0 else "FAIL", "first rate-limited at index %s; dropped among the first 30: %d" % (first_rl, early))
 
         S.stop()
 
@@ -453,8 +489,8 @@ def main():
                 s.stop()
             except Exception:
                 pass
-        if reply:
-            reply.close()
+        for r in replies:
+            r.close()
         shutil.rmtree(cwd, ignore_errors=True)
 
     fails = [r for r in RESULTS if r[1] == "FAIL"]
