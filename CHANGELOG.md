@@ -4,6 +4,12 @@ Which Claude Code versions this spec was checked against, and what changed.
 
 ## Changes to this document
 
+- Add the pages `spec/transport.md`, `spec/frames.md` and `spec/about.md`, and
+  make SPEC.md the front page: what the socket is, the version, the summary
+  table with one row per page, and what the four tags mean. Each page opens
+  with real frames and ends with an evidence table.
+- Check the tags in each page's evidence table, not in its sentences, and write
+  the summary table from the pages.
 - Mark the hold rule for a bypassing receiver as observed in sections 9, 14
   and 15, from a logged run against a `-p` session in `bypassPermissions` mode.
 - Add section 15, every way a connection or a frame fails and what the sender

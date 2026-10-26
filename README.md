@@ -27,17 +27,18 @@ Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
 
 ## What is here
 
-- [SPEC.md](SPEC.md): a descriptive spec of the socket, the frames, receipts,
-  delivery rules and limits, with every statement tagged OFFICIAL, OBSERVED, THIRD-PARTY or
-  UNVERIFIED by how it is known.
+- [SPEC.md](SPEC.md): the front page of a descriptive spec of the socket, the
+  frames, receipts, delivery rules and limits. The pages are under
+  [spec/](spec); each ends with an evidence table that says how every claim is
+  known: OFFICIAL, OBSERVED, THIRD-PARTY or UNVERIFIED.
 - [conformance/check.py](conformance/check.py): re-checks the spec against the
   `claude --version` you have. It starts throwaway `claude -p` sessions, which
   cost a few cents.
 - [examples/](examples): `send.py` and `send.sh` post a message;
   `waiter.py` waits for a command or a file, then nudges its own session.
 - [CHANGELOG.md](CHANGELOG.md): which versions were checked, and what changed.
-- `make check`: lints SPEC.md's tags and the links, checks the counts in its
-  summary table, runs shellcheck, and tests the example clients against a fake
+- `make check`: lints the evidence tables and the links, checks the counts in
+  the summary table, runs shellcheck, and tests the example clients against a fake
   receiver. No Claude Code needed, no cost.
 
 ## How it works
