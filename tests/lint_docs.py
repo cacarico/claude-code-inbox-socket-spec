@@ -3,7 +3,8 @@
 
 - SPEC.md: every bullet and every table row in a numbered section says how it is
   known, with at least one of the tags OFFICIAL, OBSERVED, THIRD-PARTY or
-  UNVERIFIED. Section 13 (a recipe, not claims) is left out.
+  UNVERIFIED. Sections 0 and 16 (about the document and its files) and 13 (a
+  recipe) make no claims and are left out.
 - Every Markdown file: relative links point at files that exist, and #anchors
   at headings that exist. External links are not fetched.
 
@@ -15,7 +16,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TAG = re.compile(r"\b(OFFICIAL|OBSERVED|THIRD-PARTY|UNVERIFIED)\b")
-UNTAGGED_SECTIONS = {"13"}
+UNTAGGED_SECTIONS = {"0", "13", "16"}
 errors = []
 
 
