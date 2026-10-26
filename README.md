@@ -36,6 +36,8 @@ Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
 - [examples/](examples): `send.py` and `send.sh` post a message;
   `waiter.py` waits for a command or a file, then nudges its own session.
 - [CHANGELOG.md](CHANGELOG.md): which versions were checked, and what changed.
+- `make check`: lints SPEC.md's tags and the links, runs shellcheck, and tests
+  the example clients against a fake receiver. No Claude Code needed, no cost.
 
 ## How it works
 
