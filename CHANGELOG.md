@@ -30,6 +30,11 @@ Seen live:
   `/tmp/cc-socks/<pid>.sock`; a 174-byte path falls back to
   `/tmp/cc-socks-<uid>/`. The exact limit, `$CLAUDE_CODE_TMPDIR` and the
   directory refusal conditions were read in the bundle only.
+- A permission prompt open in an interactive session: a `now` frame closed
+  it at once and the tool call was recorded as rejected by the user, then the
+  message was delivered (seen twice); a `next` frame waited in the queue with
+  the prompt still open. A `now` frame posted during a running Bash command
+  did not interrupt it.
 - `rename` works on interactive sessions only.
 - Own-child posts from a hook are delivered with and without the token.
 

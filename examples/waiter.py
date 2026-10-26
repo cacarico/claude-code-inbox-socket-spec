@@ -64,7 +64,8 @@ def main():
     ap.add_argument("--until-file", metavar="PATH")
     ap.add_argument("--sleep", type=float, metavar="SECONDS")
     ap.add_argument("--message", help="text to post (default: a line about what finished)")
-    ap.add_argument("--priority", choices=["now", "next", "later"], default="next")
+    ap.add_argument("--priority", choices=["now", "next", "later"], default="next",
+                    help="keep next; now also closes an open permission prompt as if the user said no")
     ap.add_argument("--detach", action="store_true")
     ap.add_argument("--socket", default=os.environ.get("CLAUDE_CODE_MESSAGING_SOCKET"))
     ap.add_argument("--token", default=os.environ.get("CLAUDE_CODE_MESSAGING_TOKEN"))

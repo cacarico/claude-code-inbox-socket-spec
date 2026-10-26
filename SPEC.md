@@ -207,6 +207,15 @@ cannot approve a pending permission prompt, cannot change configuration, and a
 slash command inside it is plain text. OFFICIAL. Once delivered it counts
 toward usage like a typed prompt. OFFICIAL.
 
+It can make a pending prompt say no, though. A `user` frame with
+`priority: "now"`, posted while an interactive session shows a permission
+prompt, closes the prompt at once; the tool call is recorded as rejected with
+the text Claude Code uses when the user declines ("The user doesn't want to
+take this action right now. STOP what you are doing and wait for the user to
+tell you how to proceed."), and then the message is delivered. A frame with
+the default `next` waits in the queue while the prompt stays open. OBSERVED
+(twice, 2.1.310, a peer post with no auth line and no envelope).
+
 ### 5.2 The envelope (sender identity)
 
 Claude Code's own sends wrap the text in an envelope inside `content`:
@@ -316,7 +325,10 @@ Rules:
   turn, and `next` came in the following turn. The meaning bundle:
   `now` is handled outside the arrival queue and can overtake frames that
   arrived earlier; `next` is the default; `later` is placed after `next`.
-  UNVERIFIED beyond that one observation. THIRD-PARTY: "`now` can overtake
+  UNVERIFIED beyond that one observation. `now` does not interrupt a running
+  tool: posted during a 20-second Bash command, it was read after the command
+  finished. OBSERVED. It does close an open permission prompt as a refusal
+  (section 5.1). OBSERVED. THIRD-PARTY: "`now` can overtake
   earlier frames from the same sender".
 - Frames posted by a `SessionStart` hook were delivered before the session's
   first prompt from stdin. OBSERVED in a `-p` session.

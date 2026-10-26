@@ -9,6 +9,9 @@
 # verified as its own child even where process evidence is missing; -n leaves it
 # out. The token is never sent to another session's socket.
 #
+# Use the default priority, next. A `now` frame skips the queue and, when the
+# session has a permission prompt open, closes it as if the user had said no.
+#
 # Exit status: 0 when the frame was written; the receiver answers nothing on
 # this connection, so success means "taken off the socket", not "read".
 set -eu
@@ -21,7 +24,7 @@ while [ $# -gt 0 ]; do
     -s) sock=$2; shift 2 ;;
     -p) priority=$2; shift 2 ;;
     -n) auth=0; shift ;;
-    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     --) shift; break ;;
     -*) echo "send.sh: unknown option $1" >&2; exit 2 ;;
     *) break ;;

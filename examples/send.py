@@ -183,7 +183,8 @@ def main():
     t.add_argument("--name")
     t.add_argument("--session-id")
     ap.add_argument("--list", action="store_true", help="list registry records and exit")
-    ap.add_argument("--priority", choices=["now", "next", "later"], default="next")
+    ap.add_argument("--priority", choices=["now", "next", "later"], default="next",
+                    help="keep next; now also closes an open permission prompt as if the user said no")
     ap.add_argument("--from-name", help="wrap the text in a <cross-session-message> envelope carrying this sender name")
     ap.add_argument("--auth", metavar="TOKEN", help="auth line token (default: $CLAUDE_CODE_MESSAGING_TOKEN when posting to your own session)")
     ap.add_argument("--no-auth", action="store_true")
