@@ -7,14 +7,13 @@ PY_FILES = examples/send.py examples/waiter.py conformance/check.py tests/lint_d
 
 .PHONY: check lint table compile shellcheck test conformance
 
-check: lint compile shellcheck test
+check: lint table compile shellcheck test
 
 # Every SPEC statement carries a tag; relative links and anchors resolve.
 lint:
 	$(PYTHON) tests/lint_docs.py
 
 # The counts in SPEC.md's summary table match the tags in each section.
-# Not in check yet: SPEC.md has no summary table so far.
 table:
 	$(PYTHON) tests/spec_table.py
 

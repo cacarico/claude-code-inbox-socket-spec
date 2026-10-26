@@ -7,6 +7,27 @@ Claude Code 2.1.310.
 Unofficial. The frame is an internal interface and can change in any release.
 Run `conformance/check.py` after an upgrade before trusting a line below.
 
+How much of each section rests on which kind of evidence, counted as section
+0.5 says:
+
+| section | covers | OFFICIAL | OBSERVED | THIRD-PARTY | UNVERIFIED |
+|---|---|---|---|---|---|
+| [1 Transport](#1-transport) | the socket, its path, its permissions and when it exists | 4 | 8 | 0 | 6 |
+| [2 Discovery](#2-discovery) | environment variables, `/status` and the session registry | 2 | 7 | 3 | 2 |
+| [3 Line framing](#3-line-framing) | one JSON object per line, the line cap and the first-line deadline | 3 | 8 | 1 | 3 |
+| [4 The auth frame](#4-the-auth-frame) | the optional auth line and the two tokens | 5 | 3 | 0 | 2 |
+| [5 The message frame](#5-the-message-frame) | the `user` frame, what the model sees and the sender envelope | 2 | 15 | 5 | 9 |
+| [6 Control frames](#6-control-frames) | the control actions and their limits | 1 | 7 | 0 | 4 |
+| [7 Receipt frames](#7-receipt-frames) | the receipts the receiver sends and to whom | 0 | 9 | 1 | 4 |
+| [8 Delivery rules](#8-delivery-rules) | when a message is read, priorities and the queue | 3 | 6 | 1 | 2 |
+| [9 Inbound controls](#9-inbound-controls) | `crossSessionInbound`, permission classes and the own-child exception | 12 | 7 | 0 | 2 |
+| [10 Limits](#10-limits) | every numeric limit in one table | 5 | 4 | 0 | 4 |
+| [11 `claude -p` and bare mode](#11-claude--p-and-bare-mode) | `-p` sessions and bare mode | 4 | 3 | 0 | 1 |
+| [12 Platform notes](#12-platform-notes) | macOS, Windows, containers and sandboxes | 5 | 1 | 0 | 1 |
+| [13 A minimal client](#13-a-minimal-client) | the steps of a minimal client | 0 | 0 | 0 | 0 |
+| [14 Security](#14-security) | who can post, what a sender can claim and what it cannot do | 8 | 8 | 0 | 2 |
+| total |  | 54 | 86 | 11 | 42 |
+
 ## 0. About this document
 
 ### 0.1 Status
