@@ -16,6 +16,10 @@ message produces no receipt (Claude Code 2.1.310): silence after a successful wr
 means the message was taken. A receipt arrives for held, refused, expired, denied
 and dropped messages, and when a held message is later released (delivered).
 
+Exit status: 0 when the frames were written and no receipt said otherwise; 1 when
+the socket could not be reached; 3 when a receipt said the message was held,
+expired, denied or dropped and no later `delivered` receipt released it.
+
 See SPEC.md for the frames. This is not a public interface of Claude Code.
 """
 import argparse
@@ -190,7 +194,7 @@ def main():
 
     if args.list:
         for rec in registry():
-            print("%-7s pid=%-8s %-28s %s  %s" % ("live" if rec["_alive"] else "stale", rec.get("pid"), rec.get("name"), rec.get("messagingSocketPath"), rec.get("cwd", "")))
+            print("%-7s pid=%-8s %-28s %s  %s" % ("live" if rec["_alive"] else "stale", rec.get("pid"), rec.get("name") or "-", rec.get("messagingSocketPath"), rec.get("cwd", "")))
         return 0
 
     sock_path, session_id = find_target(args)
@@ -233,7 +237,13 @@ def main():
         notify_id = str(uuid.uuid4())
         frames.append({"msgV": 1, "msg_id": notify_id, "type": "control", "action": "notify_when_idle", "from": reply.address, **({"session_id": session_id} if session_id else {})})
 
-    post(sock_path, frames)
+    try:
+        post(sock_path, frames)
+    except OSError as e:
+        if reply:
+            reply.close()
+        print("send.py: cannot post to %s: %s" % (sock_path, e), file=sys.stderr)
+        return 1
     sent = [f for f in frames if f.get("type") != "auth"]
     print("sent %d frame(s) to %s" % (len(sent), sock_path), file=sys.stderr)
     for f in sent:
@@ -245,7 +255,7 @@ def main():
         for frame in reply.frames(wait):
             print(json.dumps(frame))
             if frame.get("action") == "peer_message_status":
-                if frame.get("status") in ("held", "expired", "denied", "dropped", "refused"):
+                if frame.get("status") in ("held", "expired", "denied", "dropped"):
                     rc = 3
                 elif frame.get("status") == "delivered":
                     rc = 0  # a held message was approved after all

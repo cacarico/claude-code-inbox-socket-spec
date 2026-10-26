@@ -68,7 +68,7 @@ def main():
     ap.add_argument("--detach", action="store_true")
     ap.add_argument("--socket", default=os.environ.get("CLAUDE_CODE_MESSAGING_SOCKET"))
     ap.add_argument("--token", default=os.environ.get("CLAUDE_CODE_MESSAGING_TOKEN"))
-    ap.add_argument("--timeout", type=float, default=12 * 3600, help="give up after this many seconds")
+    ap.add_argument("--timeout", type=float, default=12 * 3600, help="with --until-file, give up after this many seconds")
     args = ap.parse_args()
     if not args.socket:
         sys.exit("waiter.py: CLAUDE_CODE_MESSAGING_SOCKET is not set; run this under a Claude Code session or pass --socket")
@@ -100,7 +100,11 @@ def main():
     if not os.path.exists(args.socket):
         # The session is gone; nothing to wake.
         return 1
-    post(args.socket, args.token, text, args.priority)
+    try:
+        post(args.socket, args.token, text, args.priority)
+    except OSError as e:
+        print("waiter.py: cannot post to %s: %s" % (args.socket, e), file=sys.stderr)
+        return 1
     return 0
 
 

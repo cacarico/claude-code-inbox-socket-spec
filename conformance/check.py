@@ -7,7 +7,7 @@ PASS, FAIL or SKIP line per rule, and exits 1 when any rule failed. Run it after
 Claude Code upgrade to see which statements in SPEC.md still hold.
 
     python3 conformance/check.py                 # everything (about 3 minutes, a few cents of model use)
-    python3 conformance/check.py --quick         # skip the 30 s silent-connection rule and the extra sessions
+    python3 conformance/check.py --quick         # skip the rules that wait 30 s (R13, R18) and the extra sessions
     python3 conformance/check.py --model sonnet  # another model for the throwaway sessions
 
 The sessions run under your normal Claude Code login, in a fresh temporary directory
@@ -261,7 +261,7 @@ def main():
     global VERBOSE
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--model", default="haiku")
-    ap.add_argument("--quick", action="store_true", help="skip the 30 s silent-connection rule and the hold/refuse/own-child sessions")
+    ap.add_argument("--quick", action="store_true", help="skip the rules that wait 30 s (R13, R18) and the hold/refuse/own-child sessions")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
     VERBOSE = args.verbose
@@ -494,12 +494,12 @@ def main():
             poster = ("import os,socket,json;s=socket.socket(socket.AF_UNIX);s.connect(os.environ['CLAUDE_CODE_MESSAGING_SOCKET']);"
                       "s.sendall((json.dumps({'type':'auth','token':os.environ['CLAUDE_CODE_MESSAGING_TOKEN']})+'\\n'+json.dumps({'type':'user','message':{'content':'C16 Reply exactly: ACK C16'}})+'\\n').encode());s.shutdown(1);s.close();"
                       "s=socket.socket(socket.AF_UNIX);s.connect(os.environ['CLAUDE_CODE_MESSAGING_SOCKET']);"
-                      "s.sendall((json.dumps({'type':'user','message':{'content':'C17 Reply exactly: ACK C17'}})+'\\n').encode());s.shutdown(1);s.close()")
+                      "s.sendall((json.dumps({'type':'user','message':{'content':'C16b Reply exactly: ACK C16B'}})+'\\n').encode());s.shutdown(1);s.close()")
             hook = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "%s -c \"%s\"" % (py, poster.replace('"', '\\"'))}]}]}}
             O = Session(cwd, args.model, ["--settings", json.dumps(hook)], "ownchild")
             sessions.append(O)
             report("R16 own child (SessionStart hook) posting with the token is delivered", "PASS" if O.wait_text("ACK C16", 60) else "FAIL")
-            report("R16b own child posting without the token is delivered (process evidence)", "PASS" if O.wait_text("ACK C17", 60) else "FAIL")
+            report("R16b own child posting without the token is delivered (process evidence)", "PASS" if O.wait_text("ACK C16B", 60) else "FAIL")
             O.stop()
     finally:
         for s in sessions:

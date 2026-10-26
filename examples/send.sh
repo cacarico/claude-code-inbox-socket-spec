@@ -4,9 +4,10 @@
 #   send.sh [-s SOCKET] [-p now|next|later] [-n] TEXT...
 #
 # SOCKET defaults to $CLAUDE_CODE_MESSAGING_SOCKET, the session this shell runs
-# under. When $CLAUDE_CODE_MESSAGING_TOKEN is set the auth line goes first, so a
-# hook or Bash command posting to its own session is verified as its own child
-# even where process evidence is missing; -n leaves it out.
+# under. When posting there and $CLAUDE_CODE_MESSAGING_TOKEN is set, the auth
+# line goes first, so a hook or Bash command posting to its own session is
+# verified as its own child even where process evidence is missing; -n leaves it
+# out. The token is never sent to another session's socket.
 #
 # Exit status: 0 when the frame was written; the receiver answers nothing on
 # this connection, so success means "taken off the socket", not "read".
@@ -31,12 +32,13 @@ done
 [ -S "$sock" ] || { echo "send.sh: $sock is not a socket (session gone?)" >&2; exit 1; }
 case $priority in now|next|later) ;; *) echo "send.sh: priority must be now, next or later" >&2; exit 2 ;; esac
 
-# JSON-escape the text: backslash, quote, tab and newline. Anything else that is
-# not printable ASCII is sent as is, which JSON allows for UTF-8.
-text=$(printf '%s' "$*" | awk 'BEGIN{ORS=""} {gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); gsub(/\t/,"\\t"); if (NR>1) print "\\n"; print}')
+# JSON-escape the text: backslash, quote, tab and newline. Other control
+# characters (carriage return included) are dropped, since a raw one makes the
+# line invalid JSON and the receiver skips it without a word. UTF-8 goes as is.
+text=$(printf '%s' "$*" | tr -d '\001-\010\013-\037' | awk 'BEGIN{ORS=""} {gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); gsub(/\t/,"\\t"); if (NR>1) print "\\n"; print}')
 
 frames=""
-if [ "$auth" = 1 ] && [ -n "${CLAUDE_CODE_MESSAGING_TOKEN:-}" ]; then
+if [ "$auth" = 1 ] && [ -n "${CLAUDE_CODE_MESSAGING_TOKEN:-}" ] && [ "$sock" = "${CLAUDE_CODE_MESSAGING_SOCKET:-}" ]; then
   frames=$(printf '{"type":"auth","token":"%s"}\n' "$CLAUDE_CODE_MESSAGING_TOKEN")
   frames="$frames
 "
