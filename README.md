@@ -46,7 +46,23 @@ for a command or a file, then nudges the session it was started from.
 `python3 conformance/check.py` prints a pass or fail per rule for your Claude
 Code; it starts throwaway `claude -p` sessions, which cost a few cents.
 
-## Security
+## Socket or Channels?
+
+[Channels](https://code.claude.com/docs/en/channels) is Anthropic's supported
+way to push events, a CI webhook included, into a running session. Use it if
+it fits. The socket is for what it does not cover.
+
+| | inbox socket | Channels |
+|---|---|---|
+| Status | internal; the frame can change in any release | official, research preview |
+| What you run | nothing; every session already listens | an MCP server installed as a plugin; a custom one needs `--dangerously-load-development-channels`, or an admin's allowlist, during the preview |
+| Per-session opt-in | none; `crossSessionInbound` turns it off | `--channels` at start |
+| Login and providers | any; Bedrock, Google Cloud's Agent Platform and Foundry included (2.1.248 and later) | claude.ai or a Console API key; not on Bedrock, Agent Platform or Foundry; Team and Enterprise admins must enable it |
+| Who can send | any process of your OS user, on this machine | the senders on the plugin's allowlist, from wherever the server listens |
+| Replies | none; receipts only for undelivered messages | two-way, through the plugin's tools |
+| Permission prompts | a message cannot approve one | allowlisted senders can approve or deny, if the plugin relays them |
+| `claude -p` | yes | yes |
+
 
 - Any process running as your OS user can post; nothing else on the machine
   can. On macOS and Linux no token is needed.
