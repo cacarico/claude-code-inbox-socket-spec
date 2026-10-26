@@ -491,8 +491,9 @@ What the socket lets a process do, and what it does not.
 - **It can refuse a prompt.** A `now` frame closes an open permission prompt
   as if the user had declined (section 5.1). OBSERVED. Any process of your user
   can make a pending action fail; send `next`, the default, for wake-ups.
-- **Prompt injection.** The text reaches the model as a request to act on. Do
-  not paste text you do not control, such as CI logs, issue titles, commit
+- **Prompt injection.** The text reaches the model as a request to act on:
+  the wrapper of section 5.1 tells it to treat the text as a teammate's
+  request. OBSERVED. Do not paste text you do not control, such as CI logs, issue titles, commit
   messages or PR bodies, into a message. Post a fixed line ("build 482 failed;
   log at `build/482.log`") and let the session read the details with its own
   tools.
