@@ -9,11 +9,11 @@ PY_FILES = examples/send.py examples/waiter.py conformance/check.py tests/lint_d
 
 check: lint table compile shellcheck test
 
-# Every SPEC statement carries a tag; relative links and anchors resolve.
+# Tags sit in the pages' Evidence tables; relative links and anchors resolve.
 lint:
 	$(PYTHON) tests/lint_docs.py
 
-# The counts in SPEC.md's summary table match the tags in each section.
+# The counts in SPEC.md's summary table match the tags on each page.
 table:
 	$(PYTHON) tests/spec_table.py
 

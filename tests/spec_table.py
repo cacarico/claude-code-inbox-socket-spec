@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
-"""Check the summary table of SPEC.md against the tags in its sections.
+"""Check the summary table on the front page against the tags in the pages.
 
-A section is a `## N.` heading with N of 1 or more; section 0 describes the
-document, makes no claims and has no row. A section's count for a tag is the
-number of times the tag word appears in its text outside fenced code blocks,
-as a whole word and not after "Not" or "not". "UNVERIFIED (bundle)" counts as
-UNVERIFIED, and a statement with two tags counts once for each.
+SPEC.md is the front page. Its summary table is the first one whose header row
+starts with `| page |`. It has one row per page under `spec/`, then one row per
+`## N.` section of SPEC.md itself (sections stay there until they become
+pages), then a `total` row.
 
-The table is the first one whose header row starts with `| section |`. It has
-one row per section, in order, then a `total` row. The section cell links to
-the section's heading; the OFFICIAL, OBSERVED, THIRD-PARTY and UNVERIFIED
-columns hold the counts; any other column says what the section covers and is
-written by hand.
+A unit's count for a tag is the number of times the tag word appears in its
+text outside fenced code blocks, as a whole word and not after "Not" or "not".
+"UNVERIFIED (bundle)" counts as UNVERIFIED. In a page the tags are in the
+Evidence table at the bottom, one per row.
+
+The page cell links to the page; the OFFICIAL, OBSERVED, THIRD-PARTY and
+UNVERIFIED columns hold the counts. A page's covers cell is its first
+paragraph, so --fix writes it; a section's covers cell is written by hand.
 
     python3 tests/spec_table.py         check; print the correct row for each wrong one
-    python3 tests/spec_table.py --fix   rewrite the links and counts in place
+    python3 tests/spec_table.py --fix   rewrite the links, counts and page covers in place
 
---fix keeps the hand-written cells and adds a row for a section that has none,
-with an empty covers cell, which the check refuses until it is filled.
+--fix keeps the hand-written cells and adds a row for a page or section that has
+none, with an empty covers cell for a section, which the check refuses until it
+is filled. A new page goes after the pages the table already has.
 
 Exit status 1 when anything fails.
 """
@@ -27,10 +30,11 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = ROOT / "SPEC.md"
+PAGES = ROOT / "spec"
 TAGS = ("OFFICIAL", "OBSERVED", "THIRD-PARTY", "UNVERIFIED")
 TAG = re.compile(r"\b(OFFICIAL|OBSERVED|THIRD-PARTY|UNVERIFIED)\b")
 NEGATED = re.compile(r"\b[Nn]ot\s+$")
-HEADER = "| section | covers | %s |" % " | ".join(TAGS)
+HEADER = "| page | covers | %s |" % " | ".join(TAGS)
 
 
 def slug(heading):
@@ -53,7 +57,7 @@ def strip_code(lines):
 
 
 def count(text):
-    """{tag: count} for one section's text."""
+    """{tag: count} for one unit's text."""
     counts = dict.fromkeys(TAGS, 0)
     for m in TAG.finditer(text):
         # "Not OBSERVED" says a claim was not seen; it is not a tag.
@@ -83,6 +87,30 @@ def sections(lines):
     return found
 
 
+def covers(lines):
+    """A page's first paragraph after its title, as a phrase for the table."""
+    body, seen = [], False
+    for line in lines:
+        if line.startswith("# "):
+            seen = True
+        elif seen and line.strip():
+            body.append(line.strip())
+        elif seen and body:
+            break
+    text = " ".join(body).rstrip(".")
+    return text[:1].lower() + text[1:]
+
+
+def pages():
+    """[(name, title, covers, counts)] for each spec/*.md, by name."""
+    found = []
+    for path in sorted(PAGES.glob("*.md")):
+        lines = path.read_text().split("\n")
+        title = next((l[2:].strip() for l in lines if l.startswith("# ")), path.stem)
+        found.append((path.stem, title, covers(lines), count("\n".join(strip_code(lines)))))
+    return found
+
+
 def cells(row):
     return [c.strip() for c in row.strip().strip("|").split("|")]
 
@@ -94,7 +122,7 @@ def render(row):
 def find_table(lines):
     """(header line index, end index) of the summary table, or None."""
     for i, line in enumerate(lines):
-        if re.match(r"\|\s*section\s*\|", line) and (i == 0 or not lines[i - 1].startswith("|")):
+        if re.match(r"\|\s*page\s*\|", line) and (i == 0 or not lines[i - 1].startswith("|")):
             end = i
             while end < len(lines) and lines[end].startswith("|"):
                 end += 1
@@ -102,11 +130,50 @@ def find_table(lines):
     return None
 
 
-def expected(spec, header, old):
+def key(cell):
+    """The key a row's first cell names: ("page", name), a section number, "total", or None."""
+    if cell.lower() == "total":
+        return "total"
+    m = re.search(r"\]\(spec/([^/)#]+)\.md\)", cell)
+    if m:
+        return ("page", m.group(1))
+    m = re.match(r"\[?(\d+)\b", cell)
+    return int(m.group(1)) if m else None
+
+
+def target(cell):
+    m = re.search(r"\]\(([^)]*)\)", cell)
+    return m.group(1) if m else None
+
+
+def label(k):
+    if k == "total":
+        return "the total row"
+    if isinstance(k, tuple):
+        return "page %s" % k[1]
+    return "section %s" % k
+
+
+def expected(found_pages, found_sections, header, old):
     """The rows the table should hold: [(key, cells)], `old` giving the hand-written cells by key."""
     tag_col = {h: i for i, h in enumerate(header) if h in TAGS}
+    cover_col = next((i for i, h in enumerate(header) if i > 0 and h not in TAGS), None)
     rows, total = [], dict.fromkeys(TAGS, 0)
-    for n, heading, counts in spec:
+    by_name = {name: (title, cov, counts) for name, title, cov, counts in found_pages}
+    # Pages keep the order the table has; a new one follows by name.
+    order = [k[1] for k in old if isinstance(k, tuple) and k[1] in by_name]
+    order += [n for n in by_name if n not in order]
+    for name in order:
+        title, cov, counts = by_name[name]
+        row = list(old.get(("page", name)) or [""] * len(header))
+        row[0] = "[%s](spec/%s.md)" % (title, name)
+        if cover_col is not None:
+            row[cover_col] = cov
+        for tag, i in tag_col.items():
+            row[i] = str(counts[tag])
+            total[tag] += counts[tag]
+        rows.append((("page", name), row))
+    for n, heading, counts in found_sections:
         row = list(old.get(n) or [""] * len(header))
         row[0] = "[%d %s](#%s)" % (n, heading.split(". ", 1)[1], slug(heading))
         for tag, i in tag_col.items():
@@ -121,27 +188,15 @@ def expected(spec, header, old):
     return rows
 
 
-def key(cell):
-    """The section number a row's first cell names, "total", or None."""
-    if cell.lower() == "total":
-        return "total"
-    m = re.match(r"\[?(\d+)\b", cell)
-    return int(m.group(1)) if m else None
-
-
-def target(cell):
-    m = re.search(r"\]\((#[^)]*)\)", cell)
-    return m.group(1) if m else None
-
-
 def check(text, fix):
     """(errors, the file's text after --fix or None)."""
     lines = text.split("\n")
     code_free = strip_code(lines)
-    spec = sections(code_free)
+    found_sections = sections(code_free)
+    found_pages = pages()
     found = find_table(code_free)
     if not found:
-        rows = expected(spec, cells(HEADER), {})
+        rows = expected(found_pages, found_sections, cells(HEADER), {})
         return ["SPEC.md: no summary table; it needs these rows:", HEADER,
                 render(["---"] * len(cells(HEADER)))] + [render(r) for _, r in rows], None
     start, end = found
@@ -158,35 +213,36 @@ def check(text, fix):
         if len(row) != len(header):
             errors.append("SPEC.md:%d: %d cells, the header has %d" % (i + 1, len(row), len(header)))
         elif k is None:
-            errors.append("SPEC.md:%d: the first cell names no section: %s" % (i + 1, row[0]))
+            errors.append("SPEC.md:%d: the first cell names no page or section: %s" % (i + 1, row[0]))
         elif k in old:
-            errors.append("SPEC.md:%d: a second row for section %s" % (i + 1, k))
+            errors.append("SPEC.md:%d: a second row for %s" % (i + 1, label(k)))
         else:
             old[k] = row
             order.append((k, i + 1))
-    rows = expected(spec, header, old)
+    rows = expected(found_pages, found_sections, header, old)
     keys = [k for k, _ in rows]
     for k, n in order:
         if k not in keys:
-            errors.append("SPEC.md:%d: a row for section %s, which SPEC.md does not have" % (n, k))
+            errors.append("SPEC.md:%d: a row for %s, which does not exist" % (n, label(k)))
     if [k for k, _ in order if k in keys] != [k for k in keys if k in old]:
-        errors.append("SPEC.md:%d: the rows are not in section order" % (start + 1))
-    covers = [i for i, h in enumerate(header) if i > 0 and h not in TAGS]
+        errors.append("SPEC.md:%d: the rows are not in order: pages, then sections, then the total" % (start + 1))
+    cover_cols = [i for i, h in enumerate(header) if i > 0 and h not in TAGS]
     line_of = dict(order)
     for k, row in rows:
         have = old.get(k)
         where = "SPEC.md:%d" % line_of[k] if k in line_of else "SPEC.md:%d" % (start + 1)
-        name = "the total row" if k == "total" else "section %s" % k
         if have is None:
-            errors.append("%s: no row for %s; it should read:\n  %s" % (where, name, render(row)))
+            errors.append("%s: no row for %s; it should read:\n  %s" % (where, label(k), render(row)))
             continue
         wrong = [i for i in range(len(header)) if header[i] in TAGS and have[i] != row[i]]
         if k != "total" and target(have[0]) != target(row[0]):
             wrong.append(0)
+        if isinstance(k, tuple):
+            wrong += [i for i in cover_cols if have[i] != row[i]]
         if wrong:
-            errors.append("%s: %s is wrong; it should read:\n  %s" % (where, name, render(row)))
-        if k != "total" and any(not have[i] for i in covers):
-            errors.append("%s: %s: the covers cell is empty" % (where, name))
+            errors.append("%s: %s is wrong; it should read:\n  %s" % (where, label(k), render(row)))
+        if k != "total" and any(not have[i] for i in cover_cols):
+            errors.append("%s: %s: the covers cell is empty" % (where, label(k)))
     if not fix:
         return errors, None
     table = lines[start:start + 2] + [render(r) for _, r in rows]
