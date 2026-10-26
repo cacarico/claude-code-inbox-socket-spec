@@ -30,14 +30,16 @@ Every statement says how it is known:
 - Default path on Linux: `$XDG_RUNTIME_DIR/cc-socks/<pid>.sock`, where `<pid>`
   is the session's process id. OBSERVED (for example
   `/run/user/1000/cc-socks/12345.sock`).
-- Fallback path: `/tmp/cc-socks-<uid>/<pid>.sock` (a private per-user
-  directory), used when `XDG_RUNTIME_DIR` is unset or the default path would be
-  longer than 103 bytes, or when Claude Code refuses the default directory (not
-  owned by the user or root, world- or group-writable without the sticky bit, a
-  symlink, and similar). OFFICIAL for the fallback directory and the refusal;
-  the exact rules and the 103-byte limit are UNVERIFIED (bundle). On Termux the base is `$PREFIX/tmp`. UNVERIFIED (bundle).
-  When no directory is acceptable the session runs with no inbox and `/status`
-  says `unavailable`. OFFICIAL.
+- Fallback path. When `XDG_RUNTIME_DIR` is unset, the base directory is
+  `$CLAUDE_CODE_TMPDIR` if set, else the system temp directory, so the socket is
+  `<tmp>/cc-socks/<pid>.sock`, for example `/tmp/cc-socks/<pid>.sock`. OBSERVED.
+  A private per-user directory `/tmp/cc-socks-<uid>/<pid>.sock` is used instead
+  when the chosen path would exceed 103 bytes, or when Claude Code refuses the
+  chosen directory (not owned by the user or root, world- or group-writable
+  without the sticky bit, a symlink, and similar). OBSERVED (per-user directory
+  on an over-long path, 2.1.310 on Linux); OFFICIAL for the refusal. On Termux
+  the base is `$PREFIX/tmp`. UNVERIFIED (bundle). When no directory is acceptable
+  the session runs with no inbox and `/status` says `unavailable`. OFFICIAL.
 - The socket is mode `0600` inside a `0700` directory owned by the user, so
   another user's processes cannot connect. OBSERVED (mode) and OFFICIAL
   (restricted to the OS user).
@@ -228,7 +230,9 @@ the build is green
   address: with a bare frame the model has none, even if the frame's own `from`
   field is set. OBSERVED (the model said so).
 - `from-mode` is how a sender "identifies itself as bypassing permission
-  prompts" in the delivery rules of section 9. UNVERIFIED (bundle).
+  prompts" in the delivery rules of section 9. OBSERVED: an envelope asserting
+  `from-mode="bypass"`, posted to a prompting receiver, was held with the
+  permission-mode-parity reason; a `prompting` assertion was delivered.
 
 ## 6. Control frames
 
@@ -249,8 +253,11 @@ the build is green
 | anything else | | logged `Unhandled control action` and ignored | OBSERVED |
 
 `notify_when_idle` is refused when `from` is missing, points at the receiver
-itself, or is not a socket the receiver can vet (section 7). UNVERIFIED (bundle). Per target at most 3 outstanding subscriptions are kept and
-32 in all. UNVERIFIED (bundle).
+itself, or is not a socket the receiver can vet (section 7), or whose `msg_id`
+is not a UUID. UNVERIFIED (bundle). The receiver keeps at most 32 subscriptions
+in all, and per sender at most 4 from a verified pid (8 from an unverified,
+unauthenticated sender); the oldest over the limit is answered `unavailable`.
+A sending Claude Code keeps at most 3 of its own outstanding. UNVERIFIED (bundle).
 
 ## 7. Receipt frames
 
@@ -264,11 +271,11 @@ A receipt is a control frame the receiver sends, on a new connection, to the
 | `status` | when | extra fields | tag |
 |---|---|---|---|
 | `held` | the inbound controls hold the message for the user | | OBSERVED (`crossSessionInbound: hold`) |
-| `denied` | the user declined a held message | | UNVERIFIED (needs the dialog) |
+| `denied` | the user declined a held message | | OBSERVED (declined in the interactive hold dialog; `reason`: "The recipient user declined your message; it was not delivered to their Claude session.") |
 | `expired` | a held message was dropped: dialog deadline passed, hold buffer full, or the session shut down with it held | | OBSERVED (held message settled as `expired` at session exit) |
 | `expired` + `status_detail: "refused"` | the session refuses peer messages (`crossSessionInbound: refuse`, or a policy) | `status_detail` | OBSERVED |
-| `delivered` | a previously held message was approved and released | | UNVERIFIED (needs the dialog); the `reason` text says "previously-held", bundle |
-| `dropped` | the inbox guard dropped it | `drop_reason`: `duplicate`, `rate-limited`, `hop-loop`, `hop-runaway` or `queue-full`; `dropped_msg_ids`: other ids coalesced into this receipt | OBSERVED for `duplicate`; the other reasons UNVERIFIED (bundle) |
+| `delivered` | a previously held message was approved and released | | OBSERVED (approved in the interactive hold dialog; the message then started a turn; `reason`: "Your previously-held message was approved and released to the recipient's Claude session.") |
+| `dropped` | the inbox guard dropped it | `drop_reason`: `duplicate`, `rate-limited`, `hop-loop`, `hop-runaway` or `queue-full`; `dropped_msg_ids`: other ids coalesced into this receipt | OBSERVED for `duplicate` and `rate-limited`; `queue-full`, `hop-loop` and `hop-runaway` UNVERIFIED (bundle). The two hop reasons are not reachable from a local client: they run only when the sender's pid is not kernel-verified, and a local socket connection always is |
 
 Rules:
 
@@ -335,7 +342,8 @@ OFFICIAL:
   included). OFFICIAL.
 - A **prompting** receiver delivers every message, except one whose sender
   identifies itself as bypassing: that one is held. OFFICIAL; OBSERVED that a
-  default `-p` session delivers frames that assert no class.
+  default `-p` session delivers frames that assert no class, and that a bypass
+  assertion to a prompting session is held (`holdCause: mode-mismatch`).
 - A **bypassing** receiver holds every message, except one whose sender
   identifies itself as bypassing too. OFFICIAL. Not OBSERVED here.
 - The sender's class is the `from-mode` attribute of the envelope (section
@@ -350,7 +358,9 @@ OFFICIAL:
   `dialogExpiry` (5 minutes by default) it is dropped. A `-p` session has no
   dialog and drops a default-held message after the same deadline, reporting
   `expired`. At most 100 messages are held; past that the oldest is dropped.
-  OFFICIAL.
+  OFFICIAL. OBSERVED (the dialog opened on a held bypass assertion; its two
+  choices are to deny, which drops the message and sends a `denied` receipt, or
+  to deliver it, which releases it to the model and sends a `delivered` receipt).
 - If the receiver cannot tell its own permission mode it holds (fail closed).
   UNVERIFIED (bundle).
 
@@ -363,8 +373,8 @@ OFFICIAL:
 | first line deadline | 30 seconds from connect | OFFICIAL; OBSERVED |
 | queued accepted messages per session | 50 | OFFICIAL |
 | held messages per session | 100 | OFFICIAL |
-| identical repeats | a body identical to the previous one from the same sender within 30 seconds is dropped (`duplicate`) | OBSERVED at 1.5 s; the 30 s window UNVERIFIED (bundle) |
-| rate per sender | a token bucket of 30 messages refilled at 0.5 per second; past it `rate-limited` | OFFICIAL that bursts are refused; numbers UNVERIFIED (bundle) |
+| identical repeats | a body identical to the previous one from the same sender within 30 seconds is dropped (`duplicate`) | OBSERVED: a repeat at 5 s was dropped, and the same body after 31 s was admitted |
+| rate per sender | a token bucket of 30 messages refilled at 0.5 per second; past it `rate-limited` | OBSERVED: a burst of distinct bodies was admitted up to the 30th and the 31st was `rate-limited`; from an emptied bucket, steady probing was admitted at 0.5 per second |
 | senders tracked for the above | 256, least recently seen evicted | UNVERIFIED (bundle) |
 | relay loops | a `hop-chain` that already contains the receiver 10 times, or longer than 28 hops, is dropped (`hop-loop`, `hop-runaway`) | UNVERIFIED (bundle) |
 | bursts at a Claude sender | Claude Code paces its own sends to one target and refuses more "just now" | OFFICIAL; does not apply to a third-party sender, which is subject to the receiver's bucket above |
@@ -383,8 +393,10 @@ when present, else the connecting pid. UNVERIFIED (bundle).
   messages unattended start it with `--settings '{"crossSessionInbound":"accept"}'`.
   OFFICIAL.
 - `rename` has no effect on a `-p` session. OBSERVED.
-- Bare mode (`--bare`) binds no inbox; the session cannot receive and is not
-  listed. OFFICIAL. Not OBSERVED here: bare mode needs an API-key login.
+- Bare mode (`--bare`, and `CLAUDE_CODE_SIMPLE=1`, which is treated the same)
+  skips the default inbox, so the session cannot receive and is not listed.
+  OFFICIAL. An explicit `--messaging-socket-path` still binds an inbox even under
+  bare mode. UNVERIFIED (bundle). Not OBSERVED here: bare mode needs an API-key login.
 
 ## 12. Platform notes
 
