@@ -19,9 +19,9 @@ so delivery is checked through the session itself, in its stream-json output and
 its transcript file. The receipt path is checked with the cases that do produce one
 (duplicate and rate-limited drops, hold, refuse) and with the idle notice.
 
-The rules that load the session (the rate burst, the duplicate window) run last,
-each on a reply socket of its own: the `from` address is the sender key for the
-rate bucket and the duplicate window, so a fresh socket is a fresh bucket.
+The rules that load the session (the rate burst, the duplicate window, the envelope
+hold) run last, each on a reply socket of its own: the `from` address is the sender
+key for the rate bucket and the duplicate window, so a fresh socket is a fresh bucket.
 """
 import argparse
 import json
@@ -381,8 +381,9 @@ def main():
             s.close()
             report("R13 a connection with no complete line is closed after 30 s", "PASS" if closed and 25 <= dt <= 40 else "FAIL", "%.1f s" % dt)
 
-        # The rules below load the session (R17 queues 30 prompts), so they come last. Each runs on a
-        # fresh reply socket: its `from` address is a sender key the rules above never used, so the rate bucket is full and the duplicate window empty when it starts.
+        # The rules below load the session (R19 leaves a held message behind, R17 queues 30 prompts), so
+        # they come last. Each runs on a fresh reply socket: its `from` address is a sender key the rules
+        # above never used, so the rate bucket is full and the duplicate window empty when it starts.
         def fresh_reply():
             r = Reply(os.path.dirname(S.sock), "-%08x" % (uuid.uuid4().int & 0xFFFFFFFF))
             replies.append(r)
@@ -404,6 +405,23 @@ def main():
                 if mid in d or time.time() >= end:
                     return d.get(mid)
                 time.sleep(0.2)
+
+        # R19 the envelope's from-mode against a prompting receiver (a default -p session is one)
+        rp19 = fresh_reply()
+        def envelope(mode, text):
+            return '<cross-session-message from="%s" from-name="conformance" from-mode="%s">\n%s\n</cross-session-message>' % (rp19.address, mode, text)
+        m = S.msg(envelope("prompting", "C19 Reply exactly: ACK C19"), rp19)
+        S.send([m])
+        got = S.wait_text("ACK C19", 45)
+        r = rp19.wait(lambda f: f.get("orig_msg_id") == m["msg_id"], 4)
+        report("R19 an envelope asserting from-mode=prompting is delivered to a prompting receiver, no receipt", "PASS" if got and r is None else "FAIL", json.dumps(r) if r else "")
+        m = S.msg(envelope("bypass", "C19b Reply exactly: ACK C19B"), rp19)
+        S.send([m])
+        r = rp19.wait(lambda f: f.get("orig_msg_id") == m["msg_id"], 20)
+        delivered = S.wait_text("ACK C19B", 6)
+        report("R19b an envelope asserting from-mode=bypass is held by a prompting receiver: `held` receipt naming permission-mode parity",
+               "PASS" if r and r.get("status") == "held" and "parity" in (r.get("reason") or "") and not delivered else "FAIL",
+               json.dumps(r) if r else "no receipt")
 
         # R18 duplicate window: an identical body is dropped inside the window and admitted again past 30 s.
         if args.quick:

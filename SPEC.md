@@ -30,16 +30,19 @@ Every statement says how it is known:
 - Default path on Linux: `$XDG_RUNTIME_DIR/cc-socks/<pid>.sock`, where `<pid>`
   is the session's process id. OBSERVED (for example
   `/run/user/1000/cc-socks/12345.sock`).
-- Fallback path. When `XDG_RUNTIME_DIR` is unset, the base directory is
-  `$CLAUDE_CODE_TMPDIR` if set, else the system temp directory, so the socket is
-  `<tmp>/cc-socks/<pid>.sock`, for example `/tmp/cc-socks/<pid>.sock`. OBSERVED.
+- Fallback path. When `XDG_RUNTIME_DIR` is unset, the socket is
+  `<tmp>/cc-socks/<pid>.sock` under the system temp directory, for example
+  `/tmp/cc-socks/<pid>.sock`. OBSERVED. `$CLAUDE_CODE_TMPDIR`, when set,
+  replaces the system temp directory as the base. UNVERIFIED (bundle).
   A private per-user directory `/tmp/cc-socks-<uid>/<pid>.sock` is used instead
-  when the chosen path would exceed 103 bytes, or when Claude Code refuses the
-  chosen directory (not owned by the user or root, world- or group-writable
-  without the sticky bit, a symlink, and similar). OBSERVED (per-user directory
-  on an over-long path, 2.1.310 on Linux); OFFICIAL for the refusal. On Termux
-  the base is `$PREFIX/tmp`. UNVERIFIED (bundle). When no directory is acceptable
-  the session runs with no inbox and `/status` says `unavailable`. OFFICIAL.
+  when the chosen path is too long, or when Claude Code refuses the chosen
+  directory. OBSERVED (per-user directory on a 174-byte path, 2.1.310 on Linux);
+  OFFICIAL that a refused directory falls back. The exact limit, 103 bytes, and
+  the refusal conditions (not owned by the user or root, world- or group-writable
+  without the sticky bit, a symlink, and similar) are UNVERIFIED (bundle). On
+  Termux the base is `$PREFIX/tmp`. UNVERIFIED (bundle). When no directory is
+  acceptable the session runs with no inbox and `/status` says `unavailable`.
+  OFFICIAL.
 - The socket is mode `0600` inside a `0700` directory owned by the user, so
   another user's processes cannot connect. OBSERVED (mode) and OFFICIAL
   (restricted to the OS user).
@@ -232,7 +235,9 @@ the build is green
 - `from-mode` is how a sender "identifies itself as bypassing permission
   prompts" in the delivery rules of section 9. OBSERVED: an envelope asserting
   `from-mode="bypass"`, posted to a prompting receiver, was held with the
-  permission-mode-parity reason; a `prompting` assertion was delivered.
+  permission-mode-parity reason (in an interactive session and in a `-p`
+  session); an envelope asserting `from-mode="prompting"` was delivered to a
+  `-p` session (`conformance/check.py` R19).
 
 ## 6. Control frames
 
@@ -347,7 +352,9 @@ OFFICIAL:
 - A **bypassing** receiver holds every message, except one whose sender
   identifies itself as bypassing too. OFFICIAL. Not OBSERVED here.
 - The sender's class is the `from-mode` attribute of the envelope (section
-  5.2); a frame without it asserts no class. UNVERIFIED (bundle).
+  5.2). OBSERVED for `bypass` (held) and `prompting` (delivered) at a prompting
+  receiver. That a frame without the attribute asserts no class is UNVERIFIED
+  (bundle); such frames are delivered to a prompting receiver, OBSERVED.
 - **Own-child exception**: a message the receiver can verify as coming from its
   own child process (a hook or Bash command posting back to its session) is
   delivered regardless of class. On Linux the verification is by process

@@ -4,7 +4,7 @@ Which Claude Code versions this spec was checked against, and what changed.
 
 ## 2.1.310, checked 2026-10-26 on Linux
 
-`conformance/check.py`: 24 rules, all pass.
+`conformance/check.py`: 26 rules, all pass.
 
 Seen live:
 
@@ -23,9 +23,13 @@ Seen live:
   to a prompting session, opened the approval dialog. Deny dropped it and sent a
   `denied` receipt; Approve released it to the model (a turn started) and sent a
   `delivered` receipt.
+- The envelope's `from-mode` at a `-p` session (a prompting receiver): a
+  `prompting` assertion was delivered with no receipt, a `bypass` assertion was
+  held with the permission-mode-parity reason.
 - The fallback socket directory: with `XDG_RUNTIME_DIR` unset the socket is
-  `/tmp/cc-socks/<pid>.sock`; an over-long path falls back to
-  `/tmp/cc-socks-<uid>/`.
+  `/tmp/cc-socks/<pid>.sock`; a 174-byte path falls back to
+  `/tmp/cc-socks-<uid>/`. The exact limit, `$CLAUDE_CODE_TMPDIR` and the
+  directory refusal conditions were read in the bundle only.
 - `rename` works on interactive sessions only.
 - Own-child posts from a hook are delivered with and without the token.
 
