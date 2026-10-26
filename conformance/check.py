@@ -9,6 +9,7 @@ Claude Code upgrade to see which statements in SPEC.md still hold.
     python3 conformance/check.py                 # everything (about 3 minutes, a few cents of model use)
     python3 conformance/check.py --quick         # skip the rules that wait 30 s (R13, R18) and the extra sessions
     python3 conformance/check.py --model sonnet  # another model for the throwaway sessions
+    python3 conformance/check.py --log           # also write conformance/runs/<version>-<os>.txt
 
 The sessions run under your normal Claude Code login, in a fresh temporary directory
 under this folder's .tmp/, with no tools allowed. Do not point it at a session you
@@ -51,7 +52,33 @@ def log(*a):
 
 def report(rule, status, detail=""):
     RESULTS.append((rule, status, detail))
-    print("%-4s %s%s" % (status, rule, ("  -- " + detail) if detail else ""), flush=True)
+    print(result_line(rule, status, detail), flush=True)
+
+
+def result_line(rule, status, detail):
+    return "%-4s %s%s" % (status, rule, ("  -- " + detail) if detail else "")
+
+
+def log_name(version, system):
+    """The log's file name: `2.1.310-linux.txt` for `claude --version` 2.1.310 on Linux."""
+    number = version.split()[0] if version.split() else "unknown"
+    return "%s-%s.txt" % (number, {"Darwin": "macos"}.get(system, system.lower()))
+
+
+def write_log(path, results, header):
+    """Write the run's header and one line per rule to `path`.
+
+    Logs are committed under conformance/runs/, so the home directory, which can
+    appear in a socket path, is written as `~`."""
+    home = str(pathlib.Path.home())
+    lines = ["%-9s %s" % (key + ":", value) for key, value in header.items()]
+    lines.append("")
+    lines += [result_line(rule, status, detail.replace(home, "~")) for rule, status, detail in results]
+    lines.append("")
+    lines.append("%d rules: %d pass, %d fail, %d skipped" % (len(results), sum(r[1] == "PASS" for r in results),
+                                                           sum(r[1] == "FAIL" for r in results), sum(r[1] == "SKIP" for r in results)))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n")
 
 
 def uds_address(path):
@@ -263,17 +290,29 @@ def main():
     ap.add_argument("--model", default="haiku")
     ap.add_argument("--quick", action="store_true", help="skip the rules that wait 30 s (R13, R18) and the hold/refuse/own-child sessions")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--log", nargs="?", const="", metavar="FILE",
+                    help="write the results to FILE, by default conformance/runs/<version>-<os>.txt")
     args = ap.parse_args()
     VERBOSE = args.verbose
 
     version = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout.strip()
-    print("claude:   ", version or "<not found>")
-    print("platform: ", platform.platform())
-    print("date:     ", time.strftime("%Y-%m-%d"))
+    header = {"claude": version or "<not found>", "platform": platform.platform(), "date": time.strftime("%Y-%m-%d"),
+              "model": args.model, "mode": "quick" if args.quick else "full"}
+    for key, value in header.items():
+        print("%-9s" % (key + ":"), value)
     print("config:   ", CONFIG)
     if platform.system() == "Windows":
         sys.exit("check.py speaks Unix sockets only; the Windows named pipe is not covered")
 
+    code = run(args, version)
+    if args.log is not None:
+        path = pathlib.Path(args.log) if args.log else ROOT / "conformance" / "runs" / log_name(version, platform.system())
+        write_log(path, RESULTS, header)
+        print("log:      ", path)
+    return code
+
+
+def run(args, version):
     tmp_root = ROOT / ".tmp"
     tmp_root.mkdir(exist_ok=True)
     cwd = tempfile.mkdtemp(prefix="conformance-", dir=tmp_root)
