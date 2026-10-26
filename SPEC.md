@@ -353,8 +353,10 @@ OFFICIAL:
   identifies itself as bypassing too. OFFICIAL. Not OBSERVED here.
 - The sender's class is the `from-mode` attribute of the envelope (section
   5.2). OBSERVED for `bypass` (held) and `prompting` (delivered) at a prompting
-  receiver. That a frame without the attribute asserts no class is UNVERIFIED
-  (bundle); such frames are delivered to a prompting receiver, OBSERVED.
+  receiver. A socket post the receiver cannot verify as its own child is
+  treated "like any other that asserts no permission class". OFFICIAL. That
+  the attribute is the only way to assert one is UNVERIFIED (bundle); frames
+  without it are delivered to a prompting receiver, OBSERVED.
 - **Own-child exception**: a message the receiver can verify as coming from its
   own child process (a hook or Bash command posting back to its session) is
   delivered regardless of class. On Linux the verification is by process
