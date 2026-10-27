@@ -11,6 +11,7 @@ sections below say what is known of it.
 
 | Claude Code | OS | msgV | rules passed | date |
 |---|---|---|---|---|
+| 2.1.310 | Linux | 1 | 34 of 37 (3 skipped) | 2026-10-27 |
 | 2.1.310 | Linux | 1 | 28 of 28 | 2026-10-26 |
 
 ## Changes to this document
@@ -47,7 +48,7 @@ sections below say what is known of it.
 
 ## 2.1.310, checked 2026-10-26 on Linux
 
-`conformance/check.py`: every rule passes; the count is in the table above.
+The runs of `conformance/check.py` are in the table above.
 
 Seen live:
 

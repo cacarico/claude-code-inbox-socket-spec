@@ -4,7 +4,8 @@
 The table is the first one whose header row starts with `| Claude Code |`. It has
 one row per log: the version from `claude --version`, the operating system from
 the platform line, the `msgV` the frames in the log carry, how many rules passed
-out of how many ran, and the date. Newest version first, then by operating system.
+out of how many ran (and how many were skipped), and the date. Newest version
+first, then by operating system, then the newest run first.
 
     python3 tests/compat_table.py         check; print the correct table when it is wrong
     python3 tests/compat_table.py --fix   rewrite the table in place
@@ -37,11 +38,14 @@ def parse(text, name="log"):
         raise ValueError("%s: no totals line" % name)
     msgv = sorted(set(re.findall(r'"msgV": (\d+)', text)))
     passed = "%s of %s" % (totals.group(2), totals.group(1))
+    if totals.group(4) != "0":
+        passed += " (%s skipped)" % totals.group(4)
     return [version, SYSTEMS.get(system, system), ", ".join(msgv) or "unknown", passed, field("date")]
 
 
 def order(row):
-    return ([-int(n) for n in re.findall(r"\d+", row[0])], row[1])
+    """Newest version first, then the system, then the newest run of that pair first."""
+    return ([-int(n) for n in re.findall(r"\d+", row[0])], row[1], [-int(n) for n in re.findall(r"\d+", row[4])])
 
 
 def rows():
