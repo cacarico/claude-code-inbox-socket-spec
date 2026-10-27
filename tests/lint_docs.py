@@ -5,10 +5,6 @@
   appear only in the Evidence table at the bottom (a table headed
   `| Claim | Source |`), and each of its rows has exactly one tag, in the Source
   cell. A page with no tags needs no Evidence table; every other page has one.
-- SPEC.md: every bullet and every table row in a numbered section says how it is
-  known, with at least one of the tags. Section 13 (a recipe) makes no claims and
-  is left out, and so is everything before the first numbered section, the front
-  page. The numbered sections go when they become pages.
 - Every Markdown file: relative links point at files that exist, and #anchors
   at headings that exist, in the same file or another page. External links are
   not fetched.
@@ -22,7 +18,6 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TAG = re.compile(r"\b(OFFICIAL|OBSERVED|THIRD-PARTY|UNVERIFIED)\b")
 NEGATED = re.compile(r"\b[Nn]ot\s+$")
-UNTAGGED_SECTIONS = {"0", "13", "16"}
 EVIDENCE_HEADER = ["Claim", "Source"]
 errors = []
 
@@ -53,45 +48,6 @@ def strip_code(text):
 
 def row_cells(line):
     return [c.strip() for c in line.strip().strip("|").split("|")]
-
-
-def spec_tags():
-    lines = strip_code((ROOT / "SPEC.md").read_text())
-    section = None
-    item, start = [], 0
-    header_row = None
-
-    def flush():
-        if item and section and section not in UNTAGGED_SECTIONS:
-            text = " ".join(item)
-            if not TAG.search(text):
-                errors.append("SPEC.md:%d: section %s: untagged: %s" % (start, section, text[:90]))
-
-    for n, line in enumerate(lines, 1):
-        m = re.match(r"## (\d+)\.", line)
-        if m or line.startswith("## "):
-            flush(); item = []
-            section = m.group(1) if m else None
-            continue
-        if line.startswith("- ") or line.startswith("|"):
-            flush(); item = []
-            if line.startswith("|"):
-                cells = row_cells(line)
-                if set("".join(cells)) <= set("-: "):
-                    continue  # the separator row
-                if header_row is None or not lines[n - 2].startswith("|"):
-                    header_row = cells
-                    continue  # a table's first row is its header
-                # Only tables with a tag column are claims; the others are lookup tables
-                # (registry fields) covered by the statement that introduces them.
-                if "tag" not in [h.lower() for h in header_row]:
-                    continue
-            item, start = [line], n
-        elif line.startswith("  ") and item:
-            item.append(line.strip())
-        else:
-            flush(); item = []
-    flush()
 
 
 def page_tags(path):
@@ -149,7 +105,6 @@ def links():
                     errors.append("%s:%d: link to a missing heading: %s" % (rel, n, target))
 
 
-spec_tags()
 for page in sorted((ROOT / "spec").glob("*.md")):
     page_tags(page)
 links()

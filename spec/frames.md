@@ -47,7 +47,7 @@ A message as Claude Code itself sends it:
 | `msgV` | no | `1`, the protocol version; whether the receiver rejects other values is unknown |
 | `msg_id` | no | a UUID in `8-4-4-4-12` lowercase or uppercase hex, echoed as `orig_msg_id` in receipts; a value that is not a UUID is treated as absent |
 | `priority` | no | `"now"`, `"next"` (the default) or `"later"`; any other value reads as `next` |
-| `from` | no | the sender's reply address, `uds:` and the percent-encoded path of a socket the sender listens on; needed for receipts and idle notices ([receipt frames](../SPEC.md#7-receipt-frames)); the model does not see this field |
+| `from` | no | the sender's reply address, `uds:` and the percent-encoded path of a socket the sender listens on; needed for receipts and idle notices ([receipt frames](delivery.md#receipts)); the model does not see this field |
 | `session_id` | no | when present it must equal the receiver's `sessionId` or the frame is dropped silently (`session_id mismatch` in the debug log); use it to avoid posting into a recycled pid |
 | `uuid` | no | the id the receiver gives the queued input; a UUID is generated when absent |
 | `from_plugin`, `file_attachments` | no | internal; attachments are only honoured behind a feature flag |
@@ -98,7 +98,7 @@ An enveloped frame is delivered. The model sees the envelope as written, inside 
 
 On screen, an interactive session shows an enveloped message that carries a `from-name` as a one-line preview, `› Message from @<name>: <first line> (ctrl+o to expand)`. A bare frame that starts a turn is shown as the full wrapper above. The bare-frame display is reported as [anthropics/claude-code#93720](https://github.com/anthropics/claude-code/issues/93720).
 
-`from-mode` is how a sender identifies itself as bypassing permission prompts in the [delivery rules](../SPEC.md#9-inbound-controls). An envelope asserting `from-mode="bypass"`, posted to a prompting receiver, was held with the permission-mode-parity reason, in an interactive session and in a `-p` session. An envelope asserting `from-mode="prompting"` was delivered to a `-p` session (`conformance/check.py` R19).
+`from-mode` is how a sender identifies itself as bypassing permission prompts in the [delivery rules](delivery.md#inbound-controls). An envelope asserting `from-mode="bypass"`, posted to a prompting receiver, was held with the permission-mode-parity reason, in an interactive session and in a `-p` session. An envelope asserting `from-mode="prompting"` was delivered to a `-p` session (`conformance/check.py` R19).
 
 ## Control frames
 
@@ -113,7 +113,7 @@ On screen, an interactive session shows an enveloped message that carries a `fro
 | `rename` | `name` (string) | renames the session; the registry record shows the new name with `nameSource: "peer"` and the status line changes; no effect on a `-p` session, where the handler is not wired |
 | `notify_when_idle` | `from` (reply address), `msg_id`, `from_mode` (optional) | subscribes to one notice when the session is next idle or exits; answered at once if it is idle already; expires after 12 hours, from 2.1.236, and the inbound controls apply |
 | `peer_idle_notice` | `orig_msg_id`, `state`, `finished_at`, `detail`, `from`, `from_mode` | the notice itself, sent by the watched session to the subscriber's socket; seen as `state: "idle"`, `finished_at` in ms, `from_mode: "prompting"` |
-| `peer_message_status` | see [receipt frames](../SPEC.md#7-receipt-frames) | a receipt; the receiver matches it against its own outstanding sends and drops it otherwise |
+| `peer_message_status` | see [receipt frames](delivery.md#receipts) | a receipt; the receiver matches it against its own outstanding sends and drops it otherwise |
 | `yield_artifact_replies`, `unyield_artifact_replies`, `artifact_replies_yielded` | unknown | internal hand-over of artifact comment subscriptions between sessions of one conversation |
 | anything else | | logged as `Unhandled control action` and ignored |
 

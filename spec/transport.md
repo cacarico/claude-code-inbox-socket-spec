@@ -15,7 +15,7 @@ Each session with messaging on binds one inbox. On macOS and Linux (Linux inside
 
 The socket has mode `0600` and sits in a directory of mode `0700` owned by the user, so another user's processes cannot connect.
 
-A connection is one-way. The receiver never writes on the client's connection; it reads until the client half-closes, then closes. Receipts and notices travel on new connections that the receiver opens to the sender's own socket ([receipt frames](../SPEC.md#7-receipt-frames)).
+A connection is one-way. The receiver never writes on the client's connection; it reads until the client half-closes, then closes. Receipts and notices travel on new connections that the receiver opens to the sender's own socket ([receipt frames](delivery.md#receipts)).
 
 ### Socket paths
 
