@@ -5,7 +5,8 @@ The fake receiver is a Unix socket that records what each connection wrote and
 whether the client half-closed. These tests check the client side of SPEC.md:
 one JSON object per line, the half-close, the auth line only on the session's
 own socket, `session_id` and `from`, the envelope, and send.py's handling of
-receipts. What a real session does with the frames is conformance/check.py's job.
+receipts. send.mjs runs the same cases as send.py when node is on PATH. What a
+real session does with the frames is conformance/check.py's job.
 
     python3 -m unittest discover -s tests -v
 """
@@ -115,7 +116,9 @@ def clean_env(**extra):
     return env
 
 
-class ClientTests(unittest.TestCase):
+class ReceiverCase(unittest.TestCase):
+    """A fake receiver at <scratch>/4242.sock for each test."""
+
     def setUp(self):
         self.dir = scratch_dir()
         self.sock = os.path.join(self.dir, "4242.sock")
@@ -132,13 +135,18 @@ class ClientTests(unittest.TestCase):
     def own_env(self, **extra):
         return clean_env(CLAUDE_CODE_MESSAGING_SOCKET=self.sock, CLAUDE_CODE_MESSAGING_TOKEN=TOKEN, **extra)
 
-    # send.py
 
-    def test_send_py_frame(self):
-        r = self.run_py("send.py", "--socket", self.sock, "--priority", "later", "hello", "there")
+class SendPyTests(ReceiverCase):
+    """send.py against the fake receiver. SendMjsTests runs the same cases on send.mjs."""
+
+    def send(self, *args, env=None):
+        return self.run_py("send.py", *args, env=env)
+
+    def test_frame(self):
+        r = self.send("--socket", self.sock, "--priority", "later", "hello", "there")
         self.assertEqual(r.returncode, 0, r.stderr)
         conn = self.rx.wait()[0]
-        self.assertTrue(conn["half_closed"], "send.py did not half-close")
+        self.assertTrue(conn["half_closed"], "the client did not half-close")
         [f] = self.rx.frames()
         self.assertEqual(f["type"], "user")
         self.assertEqual(f["message"]["content"], "hello there")
@@ -147,30 +155,30 @@ class ClientTests(unittest.TestCase):
         uuid.UUID(f["msg_id"])
         self.assertNotIn("from", f)
 
-    def test_send_py_own_session_sends_auth_and_session_id(self):
-        r = self.run_py("send.py", "hi", env=self.own_env(CLAUDE_CODE_SESSION_ID="sid-1"))
+    def test_own_session_sends_auth_and_session_id(self):
+        r = self.send("hi", env=self.own_env(CLAUDE_CODE_SESSION_ID="sid-1"))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.rx.wait()
         auth, msg = self.rx.frames()
         self.assertEqual(auth, {"type": "auth", "token": TOKEN})
         self.assertEqual(msg["session_id"], "sid-1")
 
-    def test_send_py_keeps_token_off_other_sockets(self):
+    def test_keeps_token_off_other_sockets(self):
         other = os.path.join(self.dir, "99.sock")
-        r = self.run_py("send.py", "--socket", self.sock, "hi",
-                        env=clean_env(CLAUDE_CODE_MESSAGING_SOCKET=other, CLAUDE_CODE_MESSAGING_TOKEN=TOKEN))
+        r = self.send("--socket", self.sock, "hi",
+                      env=clean_env(CLAUDE_CODE_MESSAGING_SOCKET=other, CLAUDE_CODE_MESSAGING_TOKEN=TOKEN))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.rx.wait()
         self.assertEqual([f["type"] for f in self.rx.frames()], ["user"])
 
-    def test_send_py_envelope(self):
-        r = self.run_py("send.py", "--socket", self.sock, "--from-name", 'c"i<>', "green")
+    def test_envelope(self):
+        r = self.send("--socket", self.sock, "--from-name", 'c"i<>', "green")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.rx.wait()
         [f] = self.rx.frames()
         self.assertEqual(f["message"]["content"], '<cross-session-message from-name="ci">\ngreen\n</cross-session-message>')
 
-    def test_send_py_registry_lookup(self):
+    def test_registry_lookup(self):
         cfg = os.path.join(self.dir, "cfg")
         os.makedirs(os.path.join(cfg, "sessions"))
         rec = {"pid": 4242, "sessionId": "sid-2", "name": "api-worker", "messagingSocketPath": self.sock}
@@ -178,17 +186,17 @@ class ClientTests(unittest.TestCase):
         stale = dict(rec, pid=4343, name="gone", messagingSocketPath=os.path.join(self.dir, "4343.sock"))
         pathlib.Path(cfg, "sessions", "4343.json").write_text(json.dumps(stale))
         env = clean_env(CLAUDE_CONFIG_DIR=cfg)
-        listing = self.run_py("send.py", "--list", env=env).stdout
+        listing = self.send("--list", env=env).stdout
         self.assertRegex(listing, r"live\s+pid=4242\s+api-worker")
         self.assertRegex(listing, r"stale\s+pid=4343")
-        r = self.run_py("send.py", "--name", "api-worker", "hi", env=env)
+        r = self.send("--name", "api-worker", "hi", env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         n = len(self.rx.wait(2))  # --list probed the socket once
         self.assertEqual(json.loads(self.rx.conns[n - 1]["data"])["session_id"], "sid-2")
-        r = self.run_py("send.py", "--name", "gone", "hi", env=env)
+        r = self.send("--name", "gone", "hi", env=env)
         self.assertNotEqual(r.returncode, 0)
 
-    def test_send_py_receipts(self):
+    def test_receipts(self):
         """A held receipt on the reply socket gives exit 3; held then delivered gives 0."""
         for receipts, rc in (([{"status": "held"}], 3), ([{"status": "held"}, {"status": "delivered"}], 0)):
             with self.subTest(receipts=receipts):
@@ -202,19 +210,28 @@ class ClientTests(unittest.TestCase):
                             for r in receipts]
 
                 self.rx = FakeReceiver(self.sock, receipt=answer)
-                r = self.run_py("send.py", "--socket", self.sock, "--receipts", "2", "hi")
+                r = self.send("--socket", self.sock, "--receipts", "2", "hi")
                 self.assertEqual(r.returncode, rc, r.stderr + r.stdout)
                 [f] = self.rx.frames()
                 self.assertTrue(f["from"].startswith("uds:" + self.dir + "/"), f["from"])
-                self.assertFalse(os.path.exists(f["from"][4:]), "send.py left its reply socket behind")
+                self.assertFalse(os.path.exists(f["from"][4:]), "the client left its reply socket behind")
                 self.assertEqual([json.loads(l)["status"] for l in r.stdout.splitlines()], [x["status"] for x in receipts])
 
-    def test_send_py_dead_socket(self):
+    def test_dead_socket(self):
         self.rx.close()
-        r = self.run_py("send.py", "--socket", self.sock, "hi")
+        r = self.send("--socket", self.sock, "hi")
         self.assertEqual(r.returncode, 1)
         self.assertIn("cannot post", r.stderr)
 
+
+@unittest.skipUnless(shutil.which("node"), "send.mjs needs node")
+class SendMjsTests(SendPyTests):
+    def send(self, *args, env=None):
+        return subprocess.run(["node", str(EXAMPLES / "send.mjs"), *args], env=env or clean_env(),
+                              capture_output=True, text=True, timeout=20)
+
+
+class ClientTests(ReceiverCase):
     # waiter.py
 
     def test_waiter_posts_after_command(self):
