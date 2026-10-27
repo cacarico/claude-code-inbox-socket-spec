@@ -38,6 +38,10 @@ Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
   `send.sh` post a message;
   `waiter.py` waits for a command or a file, then nudges its own session.
 - [CHANGELOG.md](CHANGELOG.md): which versions were checked, and what changed.
+- [.github/workflows/version-check.yml](.github/workflows/version-check.yml):
+  once a week, opens an issue when npm has a Claude Code version that
+  CHANGELOG.md does not list yet. It runs only where GitHub Actions is
+  enabled for the repository.
 - `make check`: lints the evidence tables and the links, checks the counts in
   the summary table, runs shellcheck, and tests the example clients against a fake
   receiver. No Claude Code needed, no cost.

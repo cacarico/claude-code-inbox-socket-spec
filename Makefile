@@ -3,7 +3,7 @@
 # throwaway `claude -p` sessions and spends a few cents of model use.
 
 PYTHON ?= python3
-PY_FILES = examples/send.py examples/waiter.py conformance/check.py tests/lint_docs.py tests/spec_table.py tests/test_clients.py
+PY_FILES = examples/send.py examples/waiter.py conformance/check.py conformance/version_check.py tests/lint_docs.py tests/spec_table.py tests/test_clients.py
 
 .PHONY: check lint table compile shellcheck test conformance
 
