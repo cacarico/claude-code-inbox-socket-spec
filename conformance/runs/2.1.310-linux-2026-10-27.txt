@@ -4,7 +4,7 @@ date:     2026-10-27
 model:    haiku
 mode:     full
 
-PASS R01 registry record <config>/sessions/<pid>.json names a live socket; key file beside it  -- socket=/run/user/1000/cc-socks/240767.sock key=240767.697094728d4a4285858d277e2e6173805e12ea0be7277a8d7ce66bce538bfdc4.key
+PASS R01 registry record <config>/sessions/<pid>.json names a live socket; key file beside it  -- socket=/run/user/1000/cc-socks/3806708.sock key=3806708.c5eab73af649a0ccac2927e154643af26505d9b7609bd16c23f66af34bc47a33.key
 PASS R01b socket mode 0600 in a 0700 directory  -- 600 / 700
 PASS R02 minimal frame {type:user, message.content} starts a turn in an idle session
 PASS R02b the session's transcript records it as a user line with origin.kind=peer  -- from=unknown
@@ -12,34 +12,56 @@ PASS R03 a frame with `from` that is accepted gets no receipt
 PASS R04 session_id that is not the receiver's: dropped silently
 PASS R05 empty, non-string or missing message.content: ignored
 PASS R06 unparseable or typeless lines skipped; a later valid line on the same connection delivered, even without a final newline
-PASS R07 identical repeat from the same sender within the window: `dropped` receipt, drop_reason=duplicate  -- {"type": "control", "action": "peer_message_status", "status": "dropped", "reason": "The recipient's session dropped your message at its inbox (rate limit, duplicate, relay loop, or full queue); it was not delivered and will not be.", "from": "uds:/run/user/1000/cc-socks/240767.sock", "orig_msg_id": "a8aac102-df33-4fc4-baa8-2b55f28e340b", "drop_reason": "duplicate", "dropped_msg_ids": [], "msgV": 1, "msg_id": "3ca9b6f9-eeb9-4c63-8d5f-65409d114247"}
+PASS R07 identical repeat from the same sender within the window: `dropped` receipt, drop_reason=duplicate  -- {"type": "control", "action": "peer_message_status", "status": "dropped", "reason": "The recipient's session dropped your message at its inbox (rate limit, duplicate, relay loop, or full queue); it was not delivered and will not be.", "from": "uds:/run/user/1000/cc-socks/3806708.sock", "orig_msg_id": "22a9da46-fa98-4dbe-9102-124f3a3d2f59", "drop_reason": "duplicate", "dropped_msg_ids": [], "msgV": 1, "msg_id": "3ee4ba28-25d0-496b-b046-56c2f3f9eccb"}
 PASS R07b receipt orig_msg_id names the dropped frame
 PASS R07c the first copy was delivered once  -- 1
 PASS R08 a wrong auth token does not close the connection on macOS/Linux; the message is still delivered
 PASS R09 more than 1 MiB without a newline: connection dropped, session unharmed  -- closed=True alive=True
-PASS R10 notify_when_idle on an idle session: peer_idle_notice with state=idle  -- {"type": "control", "action": "peer_idle_notice", "orig_msg_id": "ded591ce-9898-4030-bbf9-b6cf86735a1f", "state": "idle", "finished_at": 1793057553746, "from": "uds:/run/user/1000/cc-socks/240767.sock", "from_mode": "prompting", "msgV": 1, "msg_id": "421243f8-aca4-4f4b-a38e-7d0747c5ae19"}
+PASS R10 notify_when_idle on an idle session: peer_idle_notice with state=idle  -- {"type": "control", "action": "peer_idle_notice", "orig_msg_id": "39586370-7bbf-44d6-acfe-262170e0f8e2", "state": "idle", "finished_at": 1793100506510, "from": "uds:/run/user/1000/cc-socks/3806708.sock", "from_mode": "prompting", "msgV": 1, "msg_id": "07655906-419b-4753-900f-8b142ce0fffc"}
 PASS R11 unknown control action or frame type: ignored
-PASS R12 rename control on a -p session leaves the registry name alone (interactive sessions rename)  -- name=conformance-ub0f-69k-2a
+PASS R12 rename control on a -p session leaves the registry name alone (interactive sessions rename)  -- name=conformance-5zo-d94-5d
+PASS R28 message.role is not checked: a frame with role "assistant" is delivered as a peer user turn
+PASS R29 msgV other than 1 is not rejected: frames with msgV 2 and msgV "one" are delivered  -- msgV 2: delivered; msgV "one": delivered
+PASS R30 a frame's uuid is the id the receiver gives the input: the transcript line carries it  -- transcript uuid is the frame's
+PASS R35 notify_when_idle is refused with no from, with the receiver's own address, with an address outside its socket directories, and with a msg_id that is not a UUID  -- refusals logged: 4 of 4; notices to refused subscriptions: 0; the valid one answered: True
 PASS R13 a connection with no complete line is closed after 30 s  -- 30.0 s
 PASS R19 an envelope asserting from-mode=prompting is delivered to a prompting receiver, no receipt
-PASS R19b an envelope asserting from-mode=bypass is held by a prompting receiver: `held` receipt naming permission-mode parity  -- {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/240767.sock", "orig_msg_id": "b8438d05-b870-42a6-947e-5464e49497aa", "msgV": 1, "msg_id": "908d7b89-0809-4561-a8e8-9f5987a8ca84"}
+PASS R19b an envelope asserting from-mode=bypass is held by a prompting receiver: `held` receipt naming permission-mode parity  -- {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/3806708.sock", "orig_msg_id": "db8deead-71ee-4ef4-8757-fda1ee45ba41", "msgV": 1, "msg_id": "0dc12875-d179-459d-9ae7-1869f0ab6898"}
 PASS R21 an envelope with its attributes out of order is not read: its from-mode=bypass is ignored and the frame delivered  -- delivered
 PASS R21b an envelope with a 64-character from-name is read; with a 65-character one it is not  -- 64: held, 65: delivered
-PASS R22 a msg_id that is not a UUID is treated as absent: the frame fares like one with no msg_id, and no receipt names it  -- no msg_id: {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/240767.sock", "msgV": 1, "msg_id": "6d6cca93-84ea-4a67-b677-39c426c4d751"}; msg_id=abc: {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/240767.sock", "msgV": 1, "msg_id": "0c4398e8-2ed0-426c-bfc4-fdb6ec3ea82e"}
+PASS R22 a msg_id that is not a UUID is treated as absent: the frame fares like one with no msg_id, and no receipt names it  -- no msg_id: {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/3806708.sock", "msgV": 1, "msg_id": "626d3e91-6af5-4479-ac4d-07e9e9e4861f"}; msg_id=abc: {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/3806708.sock", "msgV": 1, "msg_id": "e95d65c1-db62-4039-abc7-cde8ba5c5eca"}
 PASS R25 a receipt goes only to the process that posted: another process naming our socket as `from` gets none  -- own post: held; other process: no receipt
+PASS R31 `from` is percent-encoded: a socket name with a space gets its receipt at the encoded address and none at the raw one  -- encoded: held; raw: no receipt
+PASS R32 an envelope with all six attributes in the documented order is read: its from-mode=bypass is held  -- held
+PASS R33 drop receipts to one sender are coalesced: the first at once, the next three in one receipt at least 4 s later  -- 2 receipts, 5.2 s apart; the later one names 3 of the other 3
+PASS R34 the duplicate rule keys on `from`, else on the connecting pid: repeats from one pid or one address are dropped, from another pid or address admitted  -- no from: other pid dropped 0, same pid dropped 1; from: same address dropped 1, other address dropped 0
 PASS R27 a complete first line clears the 30 s deadline: the connection is still open at 40 s  -- open at 40 s: True
 PASS R27b a blank first line counts as that line: the connection stays open, and a frame sent on it at 40 s is delivered  -- open at 40 s: True; later frame delivered: True
 PASS R18 an identical repeat within 30 s is dropped; the same body after the window is admitted  -- first=admitted within=duplicate after_window=delivered
-PASS R17 a burst from one sender is admitted up to a bucket of 30; the 31st is dropped with drop_reason=rate-limited  -- first rate-limited at index 30; dropped among the first 30: 0
-PASS R14 crossSessionInbound=hold: `held` receipt, nothing delivered  -- {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/244556.sock", "orig_msg_id": "6a9923b3-9fc8-4299-ba16-3ea59c575cc5", "msgV": 1, "msg_id": "dd473fe9-40cc-4e6e-9ed6-5ebe87861682"}
+PASS R17 a burst from one sender is admitted up to a bucket of 30; the 31st is dropped with drop_reason=rate-limited  -- first rate-limited at index 30, 0.4 s into the burst; dropped among the first 30: 0
+PASS R14 crossSessionInbound=hold: `held` receipt, nothing delivered  -- {"type": "control", "action": "peer_message_status", "status": "held", "reason": "Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).", "from": "uds:/run/user/1000/cc-socks/3841220.sock", "orig_msg_id": "02a08562-cc7c-4a5e-9601-f5cb6a8b0b34", "msgV": 1, "msg_id": "f4bb66b5-7870-4a3e-9589-78204d2ce06b"}
 PASS R14b a held message is settled as `expired` when the session ends
-PASS R15 crossSessionInbound=refuse: `expired` receipt with status_detail=refused  -- {"type": "control", "action": "peer_message_status", "status": "expired", "status_detail": "refused", "reason": "The recipient session is not accepting cross-session messages (the feature is off there, or a setting or policy there refuses them); your message was not delivered to its Claude.", "from": "uds:/run/user/1000/cc-socks/244860.sock", "orig_msg_id": "da76694a-1084-4623-8355-1307154345a4", "msgV": 1, "msg_id": "23197be5-28ee-4d47-aaf9-cc6133322212"}
+PASS R15 crossSessionInbound=refuse: `expired` receipt with status_detail=refused  -- {"type": "control", "action": "peer_message_status", "status": "expired", "status_detail": "refused", "reason": "The recipient session is not accepting cross-session messages (the feature is off there, or a setting or policy there refuses them); your message was not delivered to its Claude.", "from": "uds:/run/user/1000/cc-socks/3843869.sock", "orig_msg_id": "12620309-4c14-49fe-86c9-9fa22901a4ba", "msgV": 1, "msg_id": "2978cad3-0054-438f-b4cc-0275e5590107"}
 PASS R16 own child (SessionStart hook) posting with the token is delivered
 PASS R16b own child posting without the token is delivered (process evidence)
 SKIP R26 only the first auth line of a connection counts: the child token after a wrong one does not make the post the session's own  -- the child token from a process that is not the session's child changed nothing (held), so the order of auth lines cannot be seen
+PASS R37 the key file holds peerToken (32 hex, not the child token), procStart and pidDomain, mode 0600, named <pid>.<sha256 of the socket path>.key  -- fields peerToken, pidDomain, procStart
 PASS R23 waiting messages are read now first, then next in arrival order, then later; an unknown priority reads as next  -- read order: C23W, C23X, C23N, C23L
 PASS R24 at most 50 accepted messages wait; the 51st is dropped with drop_reason=queue-full  -- first queue-full at index 50; dropped among the first 50: 0; reasons: ['queue-full']
+PASS R36 idle subscriptions: 4 per verified pid, the oldest answered `unavailable` by a fifth; 32 in all, the 33rd answered `unavailable`  -- this pid's first of 5: unavailable; its other 4: idle; 7 other pids x 4: all idle; the 33rd: ['unavailable']
+PASS R38 the duplicate rule tracks 256 senders: with 256 tracked a repeat is still caught, and the 257th sender evicts the least recently seen  -- repeat at 256 tracked dropped: 1; repeat of the evicted sender dropped: 0
+PASS R39 with XDG_RUNTIME_DIR unset, the socket is <CLAUDE_CODE_TMPDIR>/cc-socks/<pid>.sock  -- ./.tmp/sa3/t/cc-socks/3864778.sock
+PASS R40 a default socket path of 103 bytes is used; one of 104 falls back to /tmp/cc-socks-<uid>/<pid>.sock  -- 103: ./.tmp/sa3/xxx/cc-socks/3865031.sock; 104: /tmp/cc-socks-1000/3865321.sock
+PASS R41 a base directory writable by others without the sticky bit is refused: the socket falls back to /tmp/cc-socks-<uid>/  -- /tmp/cc-socks-1000/3865939.sock
+PASS R41b the same directory with the sticky bit is used  -- ./.tmp/sa3/k/cc-socks/3866531.sock
+PASS R41c a sockets directory that is a symlink is refused: the socket falls back to /tmp/cc-socks-<uid>/  -- /tmp/cc-socks-1000/3867093.sock
+PASS R42 with TERMUX_VERSION set, the per-user fallback is $PREFIX/tmp/cc-socks-<uid>/<pid>.sock  -- ./.tmp/sa3/u/tmp/cc-socks-1000/3867849.sock
+PASS R43 with no acceptable directory there is no inbox: CLAUDE_CODE_MESSAGING_SOCKET and CLAUDE_CODE_MESSAGING_TOKEN are both unset  -- hook ran: True; socket: unset; token set: False
+PASS R44 when another live process holds the default path, the socket is <pid>-<8 hex>.sock beside it  -- /run/user/1000/cc-socks/3869186-6684359d.sock
+PASS R45 --messaging-socket-path binds the inbox at the given path  -- ./.tmp/sa3/m/chosen.sock
+PASS R45b --messaging-socket-path refuses a directory that is not mode 0700  -- exited 1: --messaging-socket-path directory ./.tmp/sa3/p is not private (mode 755)
+PASS R45c --messaging-socket-path takes a path of 103 bytes and refuses one of 104  -- 103: ./.tmp/sa3/q/cccccccccccccccccc.sock; 104: exited 1: --messaging-socket-path is too long for a Unix socket (104 bytes, max 103)
 SKIP R20 a bypassing receiver delivers an envelope asserting from-mode=bypass, no receipt  -- needs --bypass
 SKIP R20b a bypassing receiver holds a frame that asserts no permission class: `held` receipt, nothing delivered  -- needs --bypass
 
-37 rules: 34 pass, 0 fail, 3 skipped
+59 rules: 56 pass, 0 fail, 3 skipped

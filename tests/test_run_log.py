@@ -34,6 +34,7 @@ class RunLogTests(unittest.TestCase):
         home = str(pathlib.Path.home())
         results = [
             ("R01 registry record names a live socket", "PASS", "socket=%s/x/1.sock" % home),
+            ("R39 the socket is under CLAUDE_CODE_TMPDIR", "PASS", "%s/.tmp/s01/t/cc-socks/2.sock" % check.ROOT),
             ("R02 minimal frame starts a turn", "FAIL", ""),
             ("R13 a silent connection is closed after 30 s", "SKIP", "--quick"),
         ]
@@ -46,7 +47,8 @@ class RunLogTests(unittest.TestCase):
         self.assertIn("PASS R01 registry record names a live socket  -- socket=~/x/1.sock", lines)
         self.assertIn("FAIL R02 minimal frame starts a turn", lines)
         self.assertIn("SKIP R13 a silent connection is closed after 30 s  -- --quick", lines)
-        self.assertEqual(lines[-1], "3 rules: 1 pass, 1 fail, 1 skipped")
+        self.assertIn("PASS R39 the socket is under CLAUDE_CODE_TMPDIR  -- ./.tmp/s01/t/cc-socks/2.sock", lines)
+        self.assertEqual(lines[-1], "4 rules: 2 pass, 1 fail, 1 skipped")
         self.assertNotIn(home + "/", path.read_text())
 
 

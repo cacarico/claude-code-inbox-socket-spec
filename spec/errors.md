@@ -43,7 +43,7 @@ Whatever a sender learns about a failure comes in a receipt, sent to the sender'
 | a control frame with an unknown `action` | ignored; the debug log says `Unhandled control action` ([control frames](frames.md#control-frames)) |
 | a `rename` sent to a `-p` session | no effect ([platforms](platforms.md#claude--p)) |
 | `notify_when_idle` with a missing, own or unvettable `from`, or a `msg_id` that is not a UUID | refused |
-| `notify_when_idle` past 32 subscriptions in all, or the per-sender limit | the oldest is answered `unavailable` |
+| `notify_when_idle` past 32 subscriptions in all, or the per-sender limit | past 32 the new subscription, past the per-sender limit that sender's oldest, is answered `unavailable` |
 
 ## Drops with a receipt
 
@@ -103,14 +103,14 @@ These follow `crossSessionInbound` and the permission classes ([inbound controls
 | A `priority` other than `now`, `next` or `later` reads as `next` | OBSERVED (R23) |
 | An unknown control `action` is logged and ignored | OBSERVED |
 | `rename` has no effect on a `-p` session | OBSERVED |
-| `notify_when_idle` is refused for a missing, own or unvettable `from`, or a `msg_id` that is not a UUID | UNVERIFIED (bundle) |
-| Past 32 subscriptions, or the per-sender limit, the oldest is answered `unavailable` | UNVERIFIED (bundle) |
+| `notify_when_idle` is refused for a missing, own or unvettable `from`, or a `msg_id` that is not a UUID | OBSERVED (R35) |
+| Past 32 subscriptions the new one, and past 4 from one verified pid that pid's oldest, is answered `unavailable` | OBSERVED (R36) |
 | An identical body within 30 seconds is dropped as `duplicate` | OBSERVED (a repeat at 5 s dropped, the same body at 31 s admitted) |
 | Past a bucket of 30 messages refilled at 0.5 per second, a message is `rate-limited` | OBSERVED |
 | A session with 50 accepted messages waiting drops more | OFFICIAL |
 | The receipt reason for that drop is `queue-full` | OBSERVED (R24) |
 | `hop-loop` and `hop-runaway` are not reachable from a local client | UNVERIFIED (bundle) |
-| Drops to one sender are coalesced over 5 seconds, with ids in `dropped_msg_ids` | UNVERIFIED (bundle) |
+| Drops to one sender are coalesced over 5 seconds, with ids in `dropped_msg_ids` | OBSERVED (R33) |
 | A receipt goes only to the process that posted: another process listening at `from` gets none | OBSERVED (R25) |
 | The check goes through the kernel | UNVERIFIED (bundle) |
 | An accepted message produces no receipt | OBSERVED |

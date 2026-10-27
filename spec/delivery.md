@@ -109,7 +109,7 @@ The sender key for the duplicate and rate rules is the frame's `from` address wh
 | A `<own pid>.sock` beside the target's socket works | OBSERVED |
 | A receipt goes only to the process that posted: another process listening at `from` gets none | OBSERVED (R25) |
 | The check compares pid and start token through the kernel | UNVERIFIED (bundle) |
-| Drop receipts to one sender are coalesced over 5 seconds | UNVERIFIED (bundle) |
+| Drop receipts to one sender are coalesced over 5 seconds | OBSERVED (R33) |
 | A message is read between tool calls and a running tool is never interrupted | OFFICIAL |
 | The same, seen in a `-p` session: a frame posted during a tool call reached the model later in the turn | OBSERVED |
 | An idle session starts a new turn with the message | OFFICIAL |
@@ -154,7 +154,7 @@ The sender key for the duplicate and rate rules is the frame's `from` address wh
 | 100 held messages per session | OFFICIAL |
 | An identical repeat within 30 seconds is dropped | OBSERVED (a repeat at 5 s dropped, the same body at 31 s admitted) |
 | The bucket of 30 messages refilled at 0.5 per second | OBSERVED |
-| 256 senders tracked, least recently seen evicted | UNVERIFIED (bundle) |
+| 256 senders tracked, least recently seen evicted | OBSERVED (R38) |
 | The relay loop limits of 10 and 28 | UNVERIFIED (bundle) |
 | A Claude sender paces its own sends to one target | OFFICIAL |
-| The sender key is `from`, else the connecting pid | UNVERIFIED (bundle) |
+| The sender key is `from`, else the connecting pid | OBSERVED (R34, the duplicate rule) |

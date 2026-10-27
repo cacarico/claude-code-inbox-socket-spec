@@ -63,7 +63,7 @@ Each session writes `<config dir>/sessions/<pid>.json`, where `<config dir>` is 
 
 A record can outlive its process, so check that the socket connects before trusting a record. Connecting is a reliable liveness test: a stale socket file refuses the connection, and any Unix-socket client such as `nc` or `socat` can probe it.
 
-Beside each record sits `<pid>.<sha256 of the canonical socket path>.key`, mode `0600`. It is a JSON file with `peerToken` (32 hex), `procStart` and `pidDomain`, and it is how another session authenticates to this one where auth is required. The file name was seen; the contents were not.
+Beside each record sits `<pid>.<sha256 of the canonical socket path>.key`, mode `0600`. It is a JSON file with `peerToken` (32 hex), `procStart` and `pidDomain`, and it is how another session authenticates to this one where auth is required. The name and the fields were seen (`conformance/check.py` R37).
 
 ## Lines
 
@@ -97,23 +97,25 @@ The 30-second timer is cleared by the first complete line. The line cap is 1 MiB
 | One inbox per session: a Unix domain stream socket on macOS and Linux (WSL 2 included), a named pipe on native Windows | OFFICIAL |
 | The default path on Linux is `$XDG_RUNTIME_DIR/cc-socks/<pid>.sock` | OBSERVED (for example `/run/user/1000/cc-socks/12345.sock`) |
 | With `XDG_RUNTIME_DIR` unset the path is `<tmp>/cc-socks/<pid>.sock` | OBSERVED |
-| `$CLAUDE_CODE_TMPDIR` replaces the system temp directory as the base | UNVERIFIED (bundle) |
+| `$CLAUDE_CODE_TMPDIR` replaces the system temp directory as the base | OBSERVED (R39) |
 | A long path falls back to a per-user directory | OBSERVED (174-byte path, 2.1.310 on Linux) |
 | A refused directory falls back | OFFICIAL |
-| The 103-byte limit and the refusal conditions | UNVERIFIED (bundle) |
-| Termux base is `$PREFIX/tmp` | UNVERIFIED (bundle) |
+| The 103-byte limit | OBSERVED (R40, R45c) |
+| A base writable by others without the sticky bit is refused, and used with it; a sockets directory that is a symlink is refused | OBSERVED (R41, R41b, R41c) |
+| The other refusal conditions | UNVERIFIED (bundle) |
+| Termux base is `$PREFIX/tmp` | OBSERVED (R42, `TERMUX_VERSION` set on Linux) |
 | With no acceptable directory the session has no inbox and `/status` says `unavailable` | OFFICIAL |
 | The socket is mode `0600` in a `0700` directory | OBSERVED (mode) |
 | Another user's processes cannot connect | OFFICIAL (restricted to the OS user) |
-| `--messaging-socket-path` binds the inbox at a chosen path | UNVERIFIED (bundle; not in `--help`) |
-| `<pid>-<8 hex>.sock` when the default path is in use | UNVERIFIED (bundle) |
+| `--messaging-socket-path` binds the inbox at a chosen path, in a directory of mode `0700` | OBSERVED (R45, R45b; not in `--help`) |
+| `<pid>-<8 hex>.sock` when the default path is in use | OBSERVED (R44) |
 | Windows pipe names have the form `\\.\pipe\cc-msg-<32 hex>` | UNVERIFIED (bundle) |
 | The inbox is up within about two seconds and goes down with the session | OBSERVED |
 | The debug log records the listening path and the shutdown | OBSERVED |
 | A connection is one-way; the receiver only reads | OBSERVED |
 | The environment variables are exported to hooks and Bash commands, `SessionStart` included | OFFICIAL |
 | The same, seen in a hook and in Bash tool calls | OBSERVED (`SessionStart` hook and Bash tool calls) |
-| Both variables are unset without an inbox | UNVERIFIED (bundle) |
+| Both variables are unset without an inbox | OBSERVED (R43) |
 | `/status` shows the `Peer address` row | OFFICIAL |
 | The same, seen | OBSERVED (`Peer address: uds:/run/user/1000/cc-socks/<pid>.sock`) |
 | The registry file is `<config dir>/sessions/<pid>.json` | OBSERVED |
@@ -123,7 +125,7 @@ The 30-second timer is cleared by the first complete line. The line cap is 1 MiB
 | A record can outlive its process | THIRD-PARTY |
 | Connecting is a reliable liveness test | OBSERVED |
 | The key file name | OBSERVED (file name) |
-| The key file contents | UNVERIFIED (bundle; contents) |
+| The key file contents | OBSERVED (R37) |
 | A stale socket file refuses the connection | OBSERVED |
 | The client writes UTF-8 JSON lines and half-closes | OBSERVED |
 | Several frames on one connection are processed in order | OBSERVED |
