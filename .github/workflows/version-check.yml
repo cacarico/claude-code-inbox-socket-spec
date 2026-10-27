@@ -1,0 +1,33 @@
+# Once a week, compare the latest Claude Code on npm with the versions in
+# CHANGELOG.md, and open an issue when a newer one has not been checked yet.
+# The script decides; this file only reads the issue list and opens the issue.
+name: version check
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"  # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: List the issues, open and closed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue list --state all --limit 1000 --json title > "$RUNNER_TEMP/issues.json"
+      - name: Compare npm with CHANGELOG.md
+        run: python3 conformance/version_check.py --issues-json "$RUNNER_TEMP/issues.json" --out "$RUNNER_TEMP/issue.md"
+      - name: Open the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f "$RUNNER_TEMP/issue.md" ]; then
+            tail -n +2 "$RUNNER_TEMP/issue.md" > "$RUNNER_TEMP/body.md"
+            gh issue create --title "$(head -n 1 "$RUNNER_TEMP/issue.md")" --body-file "$RUNNER_TEMP/body.md"
+          fi
