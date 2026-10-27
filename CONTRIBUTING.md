@@ -19,9 +19,7 @@ of model use; run it after a Claude Code upgrade, not for a wording change.
 
 A change keeps every evidence tag on the claim it covered. A claim may move to
 another page with its row, and a new claim gets a row of its own. The counts in
-the summary table prove it: `python3 tests/spec_table.py` prints the correct row
-for each count that is wrong, and `--fix` rewrites the links, the counts and a
-page's covers cell, which is the first paragraph under the page's title.
+the summary table prove it.
 
 ## Where the tags go
 
@@ -36,8 +34,10 @@ linter fails a tag outside the table and a row without exactly one tag.
 The summary table on the front page counts the tag words in a page's Evidence
 table, outside fenced code blocks, as whole words and not directly after "Not"
 or "not". A claim with two sources has two rows and counts twice.
-`python3 tests/spec_table.py` recomputes the counts and writes the table with
-`--fix`, and `make check` runs it.
+`python3 tests/spec_table.py` recomputes the counts and prints the correct row
+for each count that is wrong, and `make check` runs it. With `--fix` it
+rewrites the links, the counts and a page's covers cell, which is the first
+paragraph under the page's title.
 
 Something not known is a word in a table cell, such as "unknown" or "not seen",
 or one short sentence.
@@ -61,7 +61,8 @@ or one short sentence.
    sentences in a row that each state a fact are a paragraph, not three
    bullets.
 5. Use no bold. A lead-in that names an item is a subheading or the start of a
-   sentence. Headings are nouns. Code spans hold identifiers, paths, values and log text.
+   sentence. Headings are nouns. Code spans hold identifiers, paths, values and
+   log text.
 6. Vary the length of sentences. Put a qualification in the sentence it
    qualifies, not in a trailing fragment. Do not write triplets for rhythm,
    stacked hedges ("may possibly"), chains of em dashes, exclamation marks or
