@@ -33,15 +33,15 @@ The receiver is the Claude Code session that owns the socket. The sender, or cli
 | peer token | the secret in the registry key file, for other sessions | [the auth frame](frames.md#the-auth-frame) |
 | message frame | a frame of type `user`, which carries text for the model | [the message frame](frames.md#the-message-frame) |
 | control frame | a frame of type `control`, which carries an action | [control frames](frames.md#control-frames) |
-| receipt | a control frame the receiver sends about a message it did not deliver | [receipt frames](../SPEC.md#7-receipt-frames) |
+| receipt | a control frame the receiver sends about a message it did not deliver | [receipt frames](delivery.md#receipts) |
 | notice | the `peer_idle_notice` control frame, sent when a watched session is idle | [control frames](frames.md#control-frames) |
 | envelope | the `<cross-session-message>` wrapper inside `content` that names the sender | [the envelope](frames.md#the-envelope) |
 | reply address | the `from` field: `uds:` and the path of a socket the sender listens on | [the message frame](frames.md#the-message-frame) |
-| own child | a process the receiver can verify descends from itself | [inbound controls](../SPEC.md#9-inbound-controls) |
-| permission class | bypassing or prompting, the receiver's and the sender's | [inbound controls](../SPEC.md#9-inbound-controls) |
-| inbound control | the `crossSessionInbound` setting: `accept`, `hold` or `refuse` | [inbound controls](../SPEC.md#9-inbound-controls) |
-| hold | keeping a message undelivered until the user approves it or a deadline passes | [inbound controls](../SPEC.md#9-inbound-controls) |
-| guard | the receiver's drop rules for repeats, rate, queue size and relay loops | [limits](../SPEC.md#10-limits) |
-| queue | where accepted message frames wait to be read | [delivery rules](../SPEC.md#8-delivery-rules) |
+| own child | a process the receiver can verify descends from itself | [inbound controls](delivery.md#inbound-controls) |
+| permission class | bypassing or prompting, the receiver's and the sender's | [inbound controls](delivery.md#inbound-controls) |
+| inbound control | the `crossSessionInbound` setting: `accept`, `hold` or `refuse` | [inbound controls](delivery.md#inbound-controls) |
+| hold | keeping a message undelivered until the user approves it or a deadline passes | [inbound controls](delivery.md#inbound-controls) |
+| guard | the receiver's drop rules for repeats, rate, queue size and relay loops | [limits](delivery.md#limits) |
+| queue | where accepted message frames wait to be read | [delivery rules](delivery.md#delivery-rules) |
 | priority | the `priority` field of a message frame: `now`, `next` or `later` | [the message frame](frames.md#the-message-frame) |
-| turn | one pass in which the model reads its input and answers | [delivery rules](../SPEC.md#8-delivery-rules) |
+| turn | one pass in which the model reads its input and answers | [delivery rules](delivery.md#delivery-rules) |

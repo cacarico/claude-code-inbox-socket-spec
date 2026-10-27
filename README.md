@@ -27,9 +27,9 @@ Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
 
 ## What is here
 
-- [SPEC.md](SPEC.md): the front page of a descriptive spec of the socket, the
-  frames, receipts, delivery rules and limits. The pages are under
-  [spec/](spec); each ends with an evidence table that says how every claim is
+- [SPEC.md](SPEC.md): the front page of a descriptive spec of the socket. The
+  pages are under [spec/](spec): transport, frames, delivery, errors, security
+  and platforms. Each ends with an evidence table that says how every claim is
   known: OFFICIAL, OBSERVED, THIRD-PARTY or UNVERIFIED.
 - [conformance/check.py](conformance/check.py): re-checks the spec against the
   `claude --version` you have. It starts throwaway `claude -p` sessions, which
@@ -114,7 +114,7 @@ it fits. The socket is for what it does not cover.
   message looks the same. Use `send.py --receipts` when nobody watches the
   receiving session.
 
-Details and how each point is known: [SPEC.md section 14](SPEC.md#14-security).
+Details and how each point is known: [the security page](spec/security.md).
 `crossSessionInbound: "refuse"` turns it off.
 
 ## License and credits

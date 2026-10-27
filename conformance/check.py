@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Conformance check for Claude Code's session inbox socket (see SPEC.md).
+"""Conformance check for Claude Code's session inbox socket (see the pages under spec/).
 
 Starts throwaway `claude -p` sessions in a scratch directory, posts frames to their
 inbox sockets and checks what the receiver does. Prints `claude --version`, then one
 PASS, FAIL or SKIP line per rule, and exits 1 when any rule failed. Run it after a
-Claude Code upgrade to see which statements in SPEC.md still hold.
+Claude Code upgrade to see which statements in the pages under spec/ still hold.
 
     python3 conformance/check.py                 # everything (about 3 minutes, a few cents of model use)
     python3 conformance/check.py --quick         # skip the rules that wait 30 s (R13, R18) and the extra sessions

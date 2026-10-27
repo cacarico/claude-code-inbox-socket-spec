@@ -20,7 +20,7 @@
 // the message was held, expired, denied or dropped and no later `delivered`
 // receipt released it.
 //
-// See SPEC.md for the frames. This is not a public interface of Claude Code.
+// See the pages under spec/ for the frames. This is not a public interface of Claude Code.
 
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
