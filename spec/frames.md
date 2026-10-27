@@ -44,7 +44,7 @@ A message as Claude Code itself sends it:
 | `type` | yes | `"user"` |
 | `message.content` | yes | a non-empty string; an empty string, an array or a missing field is ignored, and the debug log says `Ignoring user message with missing or non-string content` |
 | `message.role` | no | `"user"`; present in Claude Code's own frames and not checked by the receiver, so frames without it are delivered |
-| `msgV` | no | `1`, the protocol version; whether the receiver rejects other values is unknown |
+| `msgV` | no | `1`, the protocol version; other values are not rejected |
 | `msg_id` | no | a UUID in `8-4-4-4-12` lowercase or uppercase hex, echoed as `orig_msg_id` in receipts; a value that is not a UUID is treated as absent |
 | `priority` | no | `"now"`, `"next"` (the default) or `"later"`; any other value reads as `next` |
 | `from` | no | the sender's reply address, `uds:` and the percent-encoded path of a socket the sender listens on; needed for receipts and idle notices ([receipt frames](delivery.md#receipts)); the model does not see this field |
@@ -117,7 +117,7 @@ On screen, an interactive session shows an enveloped message that carries a `fro
 | `yield_artifact_replies`, `unyield_artifact_replies`, `artifact_replies_yielded` | unknown | internal hand-over of artifact comment subscriptions between sessions of one conversation |
 | anything else | | logged as `Unhandled control action` and ignored |
 
-`notify_when_idle` is refused when `from` is missing, points at the receiver itself, or is not a socket the receiver can vet, or when its `msg_id` is not a UUID. The receiver keeps at most 32 subscriptions in all, and per sender at most 4 from a verified pid and 8 from an unverified, unauthenticated sender; the oldest over the limit is answered `unavailable`. A sending Claude Code keeps at most 3 of its own outstanding.
+`notify_when_idle` is refused when `from` is missing, points at the receiver itself, or is not a socket the receiver can vet, or when its `msg_id` is not a UUID. The receiver keeps at most 32 subscriptions in all, and per sender at most 4 from a verified pid and 8 from an unverified, unauthenticated sender. Past a sender's limit its oldest subscription is answered `unavailable`; past 32 in all, the new one is. A sending Claude Code keeps at most 3 of its own outstanding.
 
 ## Evidence
 
@@ -126,7 +126,7 @@ On screen, an interactive session shows an enveloped message that carries a `fro
 | The auth line is optional on macOS and Linux | OFFICIAL |
 | A wrong token did not close the connection and the next message was delivered | OBSERVED |
 | On native Windows the auth line is required and a connection without a valid one delivers nothing | OFFICIAL |
-| Two tokens per session, 32 hex each: the child token and the peer token | UNVERIFIED (bundle) |
+| Two tokens per session, 32 hex each: the child token and the peer token | OBSERVED (R37) |
 | Only the child token is documented | OFFICIAL |
 | The child token makes the connection the session's own child where process evidence is missing | OFFICIAL |
 | On Linux an own-child post without an auth line is delivered, by process ancestry | OFFICIAL |
@@ -136,26 +136,27 @@ On screen, an interactive session shows an enveloped message that carries a `fro
 | The message as Claude Code itself sends it | THIRD-PARTY (consistent with the receiver bundle) |
 | `type` is `"user"` | OBSERVED |
 | `message.content` is a non-empty string, else ignored | OBSERVED |
-| `message.role` is present in Claude Code's own frames and not checked | UNVERIFIED (bundle) |
+| `message.role` is present in Claude Code's own frames and not checked | OBSERVED (R28) |
 | Frames without `message.role` are delivered | OBSERVED |
 | `msgV` is `1` | THIRD-PARTY |
-| The receiver does not reject other `msgV` values | UNVERIFIED |
+| The receiver does not reject other `msgV` values | OBSERVED (R29) |
 | `msg_id` is echoed as `orig_msg_id` | OBSERVED (echo) |
 | `msg_id` must be a UUID, else treated as absent | OBSERVED (R22) |
 | `priority` takes `now`, `next` and `later` | OBSERVED (the three values) |
 | Any other `priority` reads as `next` | OBSERVED (R23) |
 | `from` is the reply address, needed for receipts and idle notices, and hidden from the model | OBSERVED |
 | A `session_id` that differs from the receiver's drops the frame silently | OBSERVED |
-| The `uuid` field | UNVERIFIED (bundle) |
+| The `uuid` field becomes the id of the queued input | OBSERVED (R30) |
+| A UUID is generated when `uuid` is absent | UNVERIFIED (bundle) |
 | `from_plugin` and `file_attachments` | UNVERIFIED (bundle) |
-| Percent-encoding of `from` | UNVERIFIED (bundle) |
+| Percent-encoding of `from` | OBSERVED (R31) |
 | Unencoded ASCII paths work in `from` | OBSERVED |
 | The model sees the text in the wrapper | OBSERVED |
 | The transcript `origin` record, and `from: "unknown"` without `from` | OBSERVED |
 | A message cannot approve a prompt or change configuration; a slash command is plain text | OFFICIAL |
 | A delivered message counts toward usage | OFFICIAL |
 | A `now` frame closes an open prompt as a refusal; a `next` frame waits | OBSERVED (twice, 2.1.310, a peer post with no auth line and no envelope) |
-| The envelope attributes and their order | UNVERIFIED (bundle) |
+| The envelope attributes and their order | OBSERVED (R32) |
 | The Go client names `from` and `from-name` | THIRD-PARTY |
 | The receiver accepts the envelope only on a byte-for-byte match | THIRD-PARTY |
 | The same, checked here | OBSERVED (R21, R21b) |
@@ -174,5 +175,7 @@ On screen, an interactive session shows an enveloped message that carries a `fro
 | The receiver matches a receipt against its own outstanding sends | UNVERIFIED (bundle; consumption) |
 | The artifact reply actions | UNVERIFIED (bundle) |
 | An unknown action is logged and ignored | OBSERVED |
-| The `notify_when_idle` refusals and the subscription limits | UNVERIFIED (bundle) |
+| The `notify_when_idle` refusals | OBSERVED (R35) |
+| 32 subscriptions in all and 4 per verified pid, and which one is answered `unavailable` | OBSERVED (R36) |
+| 8 from an unverified, unauthenticated sender | UNVERIFIED (bundle; every local sender on Linux is verified) |
 | A sending Claude Code keeps at most 3 outstanding | UNVERIFIED (bundle) |

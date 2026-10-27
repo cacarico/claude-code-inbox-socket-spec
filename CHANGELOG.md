@@ -16,6 +16,12 @@ sections below say what is known of it.
 
 ## Changes to this document
 
+- Mark as observed, from a logged run of eighteen more rules: where the socket
+  is bound and when a directory is refused, the key file, `message.role`,
+  `msgV`, `uuid`, the encoding of `from`, the envelope's attribute order, drop
+  receipt coalescing, the sender key and the 256 senders tracked, and the
+  `notify_when_idle` refusals and limits. Past 32 subscriptions the new one is
+  answered `unavailable`, not the oldest, and the pages now say so.
 - Mark seven claims as observed, from a logged run of the new rules
   (`conformance/runs/2.1.310-linux-2026-10-27.txt`): the byte-exact envelope,
   a `msg_id` that is not a UUID, priority order, `queue-full`, receipts only to

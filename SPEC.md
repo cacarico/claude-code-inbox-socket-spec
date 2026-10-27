@@ -10,14 +10,14 @@ How much of each page rests on which kind of evidence, counted from the tag word
 
 | page | covers | OFFICIAL | OBSERVED | THIRD-PARTY | UNVERIFIED |
 |---|---|---|---|---|---|
-| [Transport](spec/transport.md) | the socket, its path and permissions, how to find a session, and how lines are framed on it | 9 | 24 | 4 | 10 |
-| [Frames](spec/frames.md) | the auth line, the message frame and its envelope, what the model sees, and the control frames | 8 | 28 | 5 | 12 |
-| [Delivery](spec/delivery.md) | what the receiver does with an accepted frame: the receipts it sends, when the model reads a message, how the inbound controls hold or refuse one, and every limit | 20 | 31 | 2 | 11 |
-| [Errors](spec/errors.md) | every way a connection or a frame fails, and what the sender sees when it does | 13 | 28 | 1 | 9 |
+| [Transport](spec/transport.md) | the socket, its path and permissions, how to find a session, and how lines are framed on it | 9 | 32 | 4 | 4 |
+| [Frames](spec/frames.md) | the auth line, the message frame and its envelope, what the model sees, and the control frames | 8 | 36 | 5 | 7 |
+| [Delivery](spec/delivery.md) | what the receiver does with an accepted frame: the receipts it sends, when the model reads a message, how the inbound controls hold or refuse one, and every limit | 20 | 34 | 2 | 8 |
+| [Errors](spec/errors.md) | every way a connection or a frame fails, and what the sender sees when it does | 13 | 31 | 1 | 6 |
 | [Security](spec/security.md) | who can post to the socket, what a sender can claim, what a message can and cannot do, and how to turn the inbox off | 8 | 10 | 0 | 0 |
 | [Platforms](spec/platforms.md) | how `claude -p` and bare mode differ from an interactive session, what changes on each platform, and the steps of a minimal client | 9 | 4 | 0 | 2 |
 | [About this document](spec/about.md) | what the document covers, the versions it names, the conventions it uses, and a list of terms | 0 | 0 | 0 | 0 |
-| total |  | 67 | 125 | 12 | 44 |
+| total |  | 67 | 147 | 12 | 27 |
 
 ## How each statement is known
 
