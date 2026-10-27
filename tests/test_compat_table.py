@@ -27,16 +27,21 @@ SKIP R13 a silent connection is closed after 30 s  -- --quick
 
 class CompatTableTests(unittest.TestCase):
     def test_a_log_becomes_a_row(self):
-        self.assertEqual(compat.parse(LOG), ["2.1.311", "macOS", "1", "1 of 2", "2026-11-02"])
+        self.assertEqual(compat.parse(LOG), ["2.1.311", "macOS", "1", "1 of 2 (1 skipped)", "2026-11-02"])
 
     def test_a_log_without_totals_is_refused(self):
         with self.assertRaises(ValueError):
             compat.parse(LOG.replace("2 rules: 1 pass, 0 fail, 1 skipped", ""))
 
     def test_newest_version_first(self):
-        rows = [["2.1.9", "Linux"], ["2.1.310", "macOS"], ["2.1.310", "Linux"]]
+        rows = [["2.1.9", "Linux", "1", "1 of 1", "2026-09-01"], ["2.1.310", "macOS", "1", "1 of 1", "2026-10-01"],
+                ["2.1.310", "Linux", "1", "1 of 1", "2026-10-01"]]
         self.assertEqual([r[:2] for r in sorted(rows, key=compat.order)],
                          [["2.1.310", "Linux"], ["2.1.310", "macOS"], ["2.1.9", "Linux"]])
+
+    def test_two_runs_of_one_version_newest_first(self):
+        rows = [["2.1.310", "Linux", "1", "28 of 28", "2026-10-26"], ["2.1.310", "Linux", "1", "34 of 37", "2026-10-27"]]
+        self.assertEqual([r[4] for r in sorted(rows, key=compat.order)], ["2026-10-27", "2026-10-26"])
 
 
 if __name__ == "__main__":
