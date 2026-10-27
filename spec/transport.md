@@ -36,11 +36,17 @@ The path limit is 103 bytes, and a directory is refused when it is not owned by 
 
 There are three ways to find a session's socket.
 
-**Environment.** Claude Code exports `CLAUDE_CODE_MESSAGING_SOCKET` (the path) and `CLAUDE_CODE_MESSAGING_TOKEN` (a per-session secret, see [the auth frame](frames.md#the-auth-frame)) to its hooks and Bash tool commands. It does so before any hook runs, `SessionStart` included. Both variables are unset in a session without an inbox.
+### Environment
 
-**`/status`.** An interactive session shows a `Peer address` row with `uds:<path>`, or `unavailable` and the reason.
+Claude Code exports `CLAUDE_CODE_MESSAGING_SOCKET` (the path) and `CLAUDE_CODE_MESSAGING_TOKEN` (a per-session secret, see [the auth frame](frames.md#the-auth-frame)) to its hooks and Bash tool commands. It does so before any hook runs, `SessionStart` included. Both variables are unset in a session without an inbox.
 
-**The session registry.** Each session writes `<config dir>/sessions/<pid>.json`, where `<config dir>` is `$CLAUDE_CONFIG_DIR` if set, else `~/.claude`. The Go client calls the same file `<config>/sessions/<pid>.json`. The fields seen in 2.1.310:
+### `/status`
+
+An interactive session shows a `Peer address` row with `uds:<path>`, or `unavailable` and the reason.
+
+### The session registry
+
+Each session writes `<config dir>/sessions/<pid>.json`, where `<config dir>` is `$CLAUDE_CONFIG_DIR` if set, else `~/.claude`. The Go client calls the same file `<config>/sessions/<pid>.json`. The fields seen in 2.1.310:
 
 | field | example | meaning |
 |---|---|---|

@@ -57,7 +57,7 @@ The setting `crossSessionInbound` takes one of three values and applies to messa
 
 A session that refuses still binds its socket and looks the same from outside.
 
-When no value applies, the receiver decides per message, by permission class. A session is **bypassing** when it runs in `bypassPermissions`, or in plan mode in an interactive terminal where bypass is available. Every other session is **prompting**, `auto`, `acceptEdits` and `dontAsk` included.
+When no value applies, the receiver decides per message, by permission class. A session is bypassing when it runs in `bypassPermissions`, or in plan mode in an interactive terminal where bypass is available. Every other session is prompting, `auto`, `acceptEdits` and `dontAsk` included.
 
 | receiver | sender | result |
 |---|---|---|
@@ -69,7 +69,7 @@ When no value applies, the receiver decides per message, by permission class. A 
 
 The sender's class is the `from-mode` attribute of the envelope ([the envelope](frames.md#the-envelope)). A default `-p` session delivered frames that assert no class, a bypass assertion to a prompting session was held, and a `-p` session in `bypassPermissions` mode behaved as the table says (`conformance/check.py` R20 and R20b). A socket post the receiver cannot verify as its own child is treated like any other post that asserts no class. That the attribute is the only way to assert a class is read in the bundle only.
 
-**Own-child exception.** A message the receiver can verify as coming from its own child process, such as a hook or a Bash command posting back to its session, is delivered whatever the class. On Linux the receiver verifies it by process ancestry, even after the child exited; on macOS only while the child runs. Where that evidence is missing, the child token in the auth line verifies it ([the auth frame](frames.md#the-auth-frame)). The exception was seen on Linux with and without the token.
+A message the receiver can verify as coming from its own child process, such as a hook or a Bash command posting back to its session, is delivered whatever the class. This is the own-child exception. On Linux the receiver verifies it by process ancestry, even after the child exited; on macOS only while the child runs. Where that evidence is missing, the child token in the auth line verifies it ([the auth frame](frames.md#the-auth-frame)). The exception was seen on Linux with and without the token.
 
 A held message in an interactive terminal opens a dialog. Left unanswered past `dialogExpiry`, 5 minutes by default, it is dropped. A `-p` session has no dialog and drops a default-held message at the same deadline, reporting `expired`. At most 100 messages are held, and past that the oldest is dropped. The dialog was seen to open on a held bypass assertion, with two choices: deny, which drops the message and sends a `denied` receipt, or deliver, which releases it to the model and sends a `delivered` receipt.
 
