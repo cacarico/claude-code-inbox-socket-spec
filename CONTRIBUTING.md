@@ -33,6 +33,12 @@ needs one, as in `OBSERVED (174-byte path, 2.1.310 on Linux)` or
 `UNVERIFIED (bundle)`. A claim with two sources gets one row per source. The
 linter fails a tag outside the table and a row without exactly one tag.
 
+The summary table on the front page counts the tag words in a page's Evidence
+table, outside fenced code blocks, as whole words and not directly after "Not"
+or "not". A claim with two sources has two rows and counts twice.
+`python3 tests/spec_table.py` recomputes the counts and writes the table with
+`--fix`, and `make check` runs it.
+
 Something not known is a word in a table cell, such as "unknown" or "not seen",
 or one short sentence.
 
@@ -54,8 +60,8 @@ or one short sentence.
    A list has items of one kind: fields, codes, states or steps. Three
    sentences in a row that each state a fact are a paragraph, not three
    bullets.
-5. Use bold for nothing but a lead-in word that names an item of a short list.
-   Headings are nouns. Code spans hold identifiers, paths, values and log text.
+5. Use no bold. A lead-in that names an item is a subheading or the start of a
+   sentence. Headings are nouns. Code spans hold identifiers, paths, values and log text.
 6. Vary the length of sentences. Put a qualification in the sentence it
    qualifies, not in a trailing fragment. Do not write triplets for rhythm,
    stacked hedges ("may possibly"), chains of em dashes, exclamation marks or

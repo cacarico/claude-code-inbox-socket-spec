@@ -1,10 +1,12 @@
 # The Claude Code session inbox socket
 
-A running Claude Code session accepts messages from other processes on the same machine on a socket, and this document describes it: the frames a process writes, what the session answers, and what the model then sees. It is not official, and it describes frame version 1 (`msgV: 1`) as shipped in Claude Code 2.1.310, as seen on Linux; the frame is an internal interface and can change in any release.
+A running Claude Code session takes messages from other processes on the same machine on a socket. This document describes the frames, the replies and what the model sees.
 
-Run `conformance/check.py` after an upgrade before trusting a page, and read [the changes to this document](CHANGELOG.md). The running Claude Code is the source of truth: where it and this document differ, the document has a bug.
+Unofficial. It describes frame version 1 (`msgV: 1`) as shipped in Claude Code 2.1.310, seen on Linux.
 
-How much of each page rests on which kind of evidence, counted as the next section says:
+The frame is an internal interface and can change in any release. Run `conformance/check.py` after an upgrade before trusting a page, and read [the changes to this document](CHANGELOG.md). The running Claude Code is the source of truth: where it and this document differ, the document has a bug.
+
+How much of each page rests on which kind of evidence, counted from the tag words in its Evidence table:
 
 | page | covers | OFFICIAL | OBSERVED | THIRD-PARTY | UNVERIFIED |
 |---|---|---|---|---|---|
@@ -25,8 +27,6 @@ Every statement is known in one of four ways. Each page ends with an Evidence ta
 - OBSERVED: run against Claude Code 2.1.310 on Linux, 2026-10-26 and 2026-10-27, in throwaway sessions; `CHANGELOG.md` and `conformance/runs/` have the runs.
 - THIRD-PARTY: another client says it: the Go client [claude-code-socket-transport](https://github.com/PeterSR/claude-code-socket-transport), which read 2.1.233.
 - UNVERIFIED: not run. "UNVERIFIED (bundle)" means read in the JavaScript bundled in the 2.1.310 binary and never seen happen.
-
-The table counts the tag words in a page's Evidence table, outside fenced code blocks, as whole words and not directly after "Not" or "not". A claim with two sources has two rows and counts twice. `python3 tests/spec_table.py` recomputes the counts and writes the table with `--fix`, and `make check` runs it.
 
 ## Pages
 
