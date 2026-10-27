@@ -92,7 +92,7 @@ The attributes come in this order, and each is optional:
 | `from-mode` | `bypass` or `prompting`, the sender's permission class |
 | `from-plugin` | unknown |
 
-The Go client names `from` and `from-name`. It reports that the receiver re-serialises what it parsed and accepts the envelope only when the result matches the input byte for byte, so attribute order and single spaces matter; this was not checked here. The sender escapes a closing tag inside the body, so a body cannot forge an envelope.
+The Go client names `from` and `from-name`. It reports that the receiver re-serialises what it parsed and accepts the envelope only when the result matches the input byte for byte, so attribute order and single spaces matter. Here an envelope with its attributes out of order was not read, nor one with a 65-character `from-name`, while one of 64 characters was (`conformance/check.py` R21 and R21b). The sender escapes a closing tag inside the body, so a body cannot forge an envelope.
 
 An enveloped frame is delivered. The model sees the envelope as written, inside the wrapper above, and the transcript's `origin` gains `name` and `body`. The `from` attribute is what gives the model a reply address: with a bare frame the model has none, even if the frame's own `from` field is set. The model said so.
 
@@ -141,9 +141,9 @@ On screen, an interactive session shows an enveloped message that carries a `fro
 | `msgV` is `1` | THIRD-PARTY |
 | The receiver does not reject other `msgV` values | UNVERIFIED |
 | `msg_id` is echoed as `orig_msg_id` | OBSERVED (echo) |
-| `msg_id` must be a UUID, else treated as absent | UNVERIFIED (bundle) |
+| `msg_id` must be a UUID, else treated as absent | OBSERVED (R22) |
 | `priority` takes `now`, `next` and `later` | OBSERVED (the three values) |
-| Any other `priority` reads as `next` | UNVERIFIED (bundle) |
+| Any other `priority` reads as `next` | OBSERVED (R23) |
 | `from` is the reply address, needed for receipts and idle notices, and hidden from the model | OBSERVED |
 | A `session_id` that differs from the receiver's drops the frame silently | OBSERVED |
 | The `uuid` field | UNVERIFIED (bundle) |
@@ -158,7 +158,7 @@ On screen, an interactive session shows an enveloped message that carries a `fro
 | The envelope attributes and their order | UNVERIFIED (bundle) |
 | The Go client names `from` and `from-name` | THIRD-PARTY |
 | The receiver accepts the envelope only on a byte-for-byte match | THIRD-PARTY |
-| The same, checked here | UNVERIFIED |
+| The same, checked here | OBSERVED (R21, R21b) |
 | The sender escapes a closing tag in the body | THIRD-PARTY |
 | An enveloped frame is delivered; the `from` attribute gives the model a reply address | OBSERVED |
 | With a bare frame the model has no reply address | OBSERVED (the model said so) |

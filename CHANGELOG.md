@@ -4,6 +4,10 @@ Which Claude Code versions this spec was checked against, and what changed.
 
 ## Changes to this document
 
+- Mark seven claims as observed, from a logged run of the new rules
+  (`conformance/runs/2.1.310-linux-2026-10-27.txt`): the byte-exact envelope,
+  a `msg_id` that is not a UUID, priority order, `queue-full`, receipts only to
+  the poster, and the first line that clears the 30-second timer.
 - Move the receipts, delivery rules, inbound controls and limits into
   `spec/delivery.md`, the error table into `spec/errors.md`, the security
   section into `spec/security.md`, and `claude -p`, bare mode, the platform

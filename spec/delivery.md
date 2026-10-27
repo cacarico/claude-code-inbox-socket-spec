@@ -41,7 +41,7 @@ The three priorities, in a test of three frames posted within 100 ms to an idle 
 | `now` | joined that turn |
 | `next` | the default; came in the following turn |
 
-In the bundle `now` is handled outside the arrival queue and can overtake frames that arrived earlier, `next` is the default and `later` goes after `next`; beyond that one test the order is not seen. `now` does not interrupt a running tool: posted during a 20-second Bash command, it was read after the command finished. It does close an open permission prompt as a refusal ([what the model sees](frames.md#what-the-model-sees)). The Go client says that `now` can overtake earlier frames from the same sender.
+In a busy session, waiting messages were read `now` first, then `next` in arrival order, then `later`, and a priority other than these three read as `next` (`conformance/check.py` R23). In the bundle `now` is handled outside the arrival queue, which is how it overtakes frames that arrived earlier. `now` does not interrupt a running tool: posted during a 20-second Bash command, it was read after the command finished. It does close an open permission prompt as a refusal ([what the model sees](frames.md#what-the-model-sees)). The Go client says that `now` can overtake earlier frames from the same sender.
 
 At most 50 accepted peer messages wait to be read in one session. Past that, new ones are dropped with `queue-full`.
 
@@ -100,26 +100,29 @@ The sender key for the duplicate and rate rules is the frame's `from` address wh
 | A refusing session answers `expired` with `status_detail: "refused"` | OBSERVED |
 | An approved held message gets a `delivered` receipt and then starts a turn | OBSERVED (approved in the interactive hold dialog) |
 | A guard drop for `duplicate` or `rate-limited` gets a `dropped` receipt | OBSERVED |
-| The `queue-full` drop reason, and that `hop-loop` and `hop-runaway` cannot come from a local client | UNVERIFIED (bundle) |
+| The `queue-full` drop reason | OBSERVED (R24) |
+| `hop-loop` and `hop-runaway` cannot come from a local client | UNVERIFIED (bundle) |
 | An accepted message produces no receipt | OBSERVED (no frame within 6 s of an immediate delivery) |
 | An accepted message produces no receipt | THIRD-PARTY |
 | `reason` is a sentence, `orig_msg_id` is the `msg_id` concerned, `from` is the receiver's own address | OBSERVED |
 | The receiver sends only to a `from` it can vet | UNVERIFIED (bundle) |
 | A `<own pid>.sock` beside the target's socket works | OBSERVED |
-| The receiver checks that the process listening at `from` is the one that posted | UNVERIFIED (bundle) |
+| A receipt goes only to the process that posted: another process listening at `from` gets none | OBSERVED (R25) |
+| The check compares pid and start token through the kernel | UNVERIFIED (bundle) |
 | Drop receipts to one sender are coalesced over 5 seconds | UNVERIFIED (bundle) |
 | A message is read between tool calls and a running tool is never interrupted | OFFICIAL |
 | The same, seen in a `-p` session: a frame posted during a tool call reached the model later in the turn | OBSERVED |
 | An idle session starts a new turn with the message | OFFICIAL |
 | The same, in `-p` and interactive sessions | OBSERVED |
 | Order of `later`, `now` and `next` in three frames within 100 ms | OBSERVED |
-| `now` is handled outside the queue, `next` is the default, `later` goes after `next` | UNVERIFIED |
+| In a busy session `now` is read first, then `next` in arrival order, then `later` | OBSERVED (R23) |
+| `now` is handled outside the arrival queue | UNVERIFIED (bundle) |
 | `now` does not interrupt a running tool | OBSERVED (20-second Bash command) |
 | `now` closes an open permission prompt as a refusal | OBSERVED |
 | `now` can overtake earlier frames from the same sender | THIRD-PARTY |
 | Frames from a `SessionStart` hook arrive before the first prompt from stdin | OBSERVED (`-p` session) |
 | At most 50 accepted messages wait per session | OFFICIAL |
-| The receipt reason for the 51st is `queue-full` | UNVERIFIED (bundle) |
+| The receipt reason for the 51st is `queue-full` | OBSERVED (R24) |
 | `crossSessionInbound` takes `accept`, `hold` or `refuse` and applies to socket messages | OFFICIAL |
 | `accept` delivers every frame | OFFICIAL |
 | `hold` sends a `held` receipt and delivers nothing until a later `accept`, with no expiry of its own | OFFICIAL |

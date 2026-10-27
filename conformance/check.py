@@ -7,7 +7,7 @@ PASS, FAIL or SKIP line per rule, and exits 1 when any rule failed. Run it after
 Claude Code upgrade to see which statements in the pages under spec/ still hold.
 
     python3 conformance/check.py                 # everything (about 3 minutes, a few cents of model use)
-    python3 conformance/check.py --quick         # skip the rules that wait 30 s (R13, R18) and the extra sessions
+    python3 conformance/check.py --quick         # skip the rules that wait 30 s (R13, R18, R27) and the extra sessions
     python3 conformance/check.py --model sonnet  # another model for the throwaway sessions
     python3 conformance/check.py --log           # also write conformance/runs/<version>-<os>.txt
     python3 conformance/check.py --bypass        # also run R20 against a session in bypassPermissions mode
@@ -85,6 +85,11 @@ def write_log(path, results, header):
 def uds_address(path):
     safe = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789:_/.\\-")
     return "uds:" + "".join(ch if ch in safe else "".join("%%%02X" % b for b in ch.encode()) for ch in path)
+
+
+def envelope(attrs, text):
+    """A cross-session envelope around `text`, with the attributes [(name, value), ...] in the order given."""
+    return "<cross-session-message %s>\n%s\n</cross-session-message>" % (" ".join('%s="%s"' % a for a in attrs), text)
 
 
 def clean_env():
@@ -272,6 +277,32 @@ class Session:
             time.sleep(0.5)
         return None
 
+    def transcript_order(self, markers, timeout):
+        """The markers in the order their peer user lines appear in the transcript, once all of them are
+        there, or None. Messages read together may share a line; then their place in the line decides."""
+        end = time.time() + timeout
+        while time.time() < end:
+            seen = {}
+            for f in (CONFIG / "projects").glob("*/%s.jsonl" % self.sid):
+                try:
+                    lines = f.read_text().splitlines()
+                except OSError:
+                    continue
+                for n, line in enumerate(lines):
+                    try:
+                        o = json.loads(line)
+                    except ValueError:
+                        continue
+                    if o.get("type") != "user" or (o.get("origin") or {}).get("kind") != "peer":
+                        continue
+                    for m in markers:
+                        if m not in seen and m in line:
+                            seen[m] = (n, line.index(m))
+            if len(seen) == len(markers):
+                return sorted(markers, key=seen.get)
+            time.sleep(0.5)
+        return None
+
     def stop(self):
         try:
             self.p.stdin.close()
@@ -289,7 +320,7 @@ def main():
     global VERBOSE
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--model", default="haiku")
-    ap.add_argument("--quick", action="store_true", help="skip the rules that wait 30 s (R13, R18) and the hold/refuse/own-child sessions")
+    ap.add_argument("--quick", action="store_true", help="skip the rules that wait 30 s (R13, R18, R27) and the extra sessions")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--bypass", action="store_true",
                     help="run R20: start a throwaway session with --permission-mode bypassPermissions (no tools, empty directory)")
@@ -450,20 +481,132 @@ def run(args, version):
 
         # R19 the envelope's from-mode against a prompting receiver (a default -p session is one)
         rp19 = fresh_reply()
-        def envelope(mode, text):
-            return '<cross-session-message from="%s" from-name="conformance" from-mode="%s">\n%s\n</cross-session-message>' % (rp19.address, mode, text)
-        m = S.msg(envelope("prompting", "C19 Reply exactly: ACK C19"), rp19)
+        def envelope19(mode, text):
+            return envelope([("from", rp19.address), ("from-name", "conformance"), ("from-mode", mode)], text)
+        m = S.msg(envelope19("prompting", "C19 Reply exactly: ACK C19"), rp19)
         S.send([m])
         got = S.wait_text("ACK C19", 45)
         r = rp19.wait(lambda f: f.get("orig_msg_id") == m["msg_id"], 4)
         report("R19 an envelope asserting from-mode=prompting is delivered to a prompting receiver, no receipt", "PASS" if got and r is None else "FAIL", json.dumps(r) if r else "")
-        m = S.msg(envelope("bypass", "C19b Reply exactly: ACK C19B"), rp19)
+        m = S.msg(envelope19("bypass", "C19b Reply exactly: ACK C19B"), rp19)
         S.send([m])
         r = rp19.wait(lambda f: f.get("orig_msg_id") == m["msg_id"], 20)
         delivered = S.wait_text("ACK C19B", 6)
         report("R19b an envelope asserting from-mode=bypass is held by a prompting receiver: `held` receipt naming permission-mode parity",
                "PASS" if r and r.get("status") == "held" and "parity" in (r.get("reason") or "") and not delivered else "FAIL",
                json.dumps(r) if r else "no receipt")
+
+        def outcome(sess, rp, m, marker, timeout=40, before=()):
+            """Post `m`, after the frames `before` on the same connection, and say what became of it: `held`
+            (a held receipt on `rp`), `delivered` (the model answered with `ACK <marker>`) or `neither`."""
+            sess.send(list(before) + [m])
+            end = time.time() + timeout
+            while time.time() < end:
+                if any(f.get("orig_msg_id") == m["msg_id"] and f.get("status") == "held" for f in list(rp.frames)):
+                    return "held"
+                if any("ACK " + marker in t for t in sess.texts):
+                    return "delivered"
+                time.sleep(0.2)
+            return "neither"
+
+        def asking(marker):
+            return "%s Reply exactly: ACK %s" % (marker, marker)
+
+        # R21 the receiver reads an envelope only when it re-serialises to the same bytes. A prompting
+        # receiver holds an envelope that asserts from-mode=bypass (R19b), so `held` says the envelope was
+        # read, and `delivered` says it was not and the frame counted as asserting no permission class.
+        rp21 = fresh_reply()
+        def env21(attrs, marker):
+            return outcome(S, rp21, S.msg(envelope(attrs, asking(marker)), rp21), marker)
+        reordered = env21([("from", rp21.address), ("from-mode", "bypass"), ("from-name", "conformance")], "C21A")
+        report("R21 an envelope with its attributes out of order is not read: its from-mode=bypass is ignored and the frame delivered",
+               "PASS" if reordered == "delivered" else "FAIL", reordered)
+        name64 = env21([("from", rp21.address), ("from-name", "n" * 64), ("from-mode", "bypass")], "C21B")
+        name65 = env21([("from", rp21.address), ("from-name", "n" * 65), ("from-mode", "bypass")], "C21C")
+        report("R21b an envelope with a 64-character from-name is read; with a 65-character one it is not",
+               "PASS" if name64 == "held" and name65 == "delivered" else "FAIL", "64: %s, 65: %s" % (name64, name65))
+
+        # R22 a msg_id that is not a UUID counts as absent: a frame with msg_id "abc" fares like one with no
+        # msg_id at all. Both assert bypass, so both are held; whether a receipt comes, and that it names no
+        # orig_msg_id, must be the same for the two.
+        rp22 = fresh_reply()
+        def held22(marker, msg_id):
+            m = S.msg(envelope([("from", rp22.address), ("from-mode", "bypass")], asking(marker)), rp22)
+            if msg_id is None:
+                del m["msg_id"]
+            else:
+                m["msg_id"] = msg_id
+            old = {id(f) for f in rp22.frames}
+            S.send([m])
+            r = rp22.wait(lambda f: f.get("action") == "peer_message_status" and id(f) not in old, 15)
+            return r, bool(S.wait_text("ACK " + marker, 1 if r else 10))
+        def said(r, shown):
+            return "delivered" if shown else (json.dumps(r) if r else "held, no receipt")
+        (absent, shown_a), (abc, shown_b) = held22("C22A", None), held22("C22B", "abc")
+        same = not shown_a and not shown_b and (absent is None) == (abc is None) and \
+            all(r.get("status") == "held" and r.get("orig_msg_id") is None for r in (absent, abc) if r)
+        report("R22 a msg_id that is not a UUID is treated as absent: the frame fares like one with no msg_id, and no receipt names it",
+               "PASS" if same else "FAIL", "no msg_id: %s; msg_id=abc: %s" % (said(absent, shown_a), said(abc, shown_b)))
+
+        # R25 a receipt goes only to the process that posted. A child of this script posts a frame that will
+        # be held, naming this script's reply socket as `from`: the listener there is not the poster, so no
+        # receipt may come. The child stays alive meanwhile, so its pid is still there to be checked.
+        rp25 = fresh_reply()
+        mine = S.msg(envelope([("from", rp25.address), ("from-mode", "bypass")], asking("C25A")), rp25)
+        own = outcome(S, rp25, mine, "C25A", 20)
+        posed = S.msg(envelope([("from", rp25.address), ("from-mode", "bypass")], asking("C25B")), rp25)
+        poster = ("import socket,sys,time;s=socket.socket(socket.AF_UNIX);s.connect(sys.argv[1]);"
+                  "s.sendall(sys.argv[2].encode());s.shutdown(socket.SHUT_WR);time.sleep(30)")
+        child = subprocess.Popen([sys.executable, "-c", poster, S.sock, json.dumps(posed) + "\n"])
+        try:
+            other = rp25.wait(lambda f: f.get("orig_msg_id") == posed["msg_id"], 20)
+            shown = S.wait_text("ACK C25B", 1)
+        finally:
+            child.kill()
+            child.wait()
+        report("R25 a receipt goes only to the process that posted: another process naming our socket as `from` gets none",
+               "PASS" if own == "held" and other is None and not shown else "FAIL",
+               "own post: %s; other process: %s" % (own, json.dumps(other) if other else ("delivered" if shown else "no receipt")))
+
+        # R27 the 30 s deadline is for the first line: a connection whose first line is complete, a frame or a
+        # blank line, is still open past it, and a frame written later on the blank one is delivered.
+        r27 = ("R27 a complete first line clears the 30 s deadline: the connection is still open at 40 s",
+               "R27b a blank first line counts as that line: the connection stays open, and a frame sent on it at 40 s is delivered")
+        if args.quick:
+            for rule in r27:
+                report(rule, "SKIP", "--quick")
+        else:
+            framed = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            framed.connect(S.sock)
+            framed.sendall((json.dumps(S.msg(asking("C27A"))) + "\n").encode())
+            blank = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            blank.connect(S.sock)
+            blank.sendall(b"\n")
+            time.sleep(40)
+
+            def still_open(c):
+                # The receiver never writes on a connection, so a read that would block means it is open.
+                c.setblocking(False)
+                try:
+                    return c.recv(1) != b""
+                except BlockingIOError:
+                    return True
+                except OSError:
+                    return False
+                finally:
+                    c.setblocking(True)
+
+            open_framed, open_blank = still_open(framed), still_open(blank)
+            try:
+                blank.sendall((json.dumps(S.msg(asking("C27B"))) + "\n").encode())
+                blank.shutdown(socket.SHUT_WR)
+            except OSError:
+                pass
+            late = S.wait_text("ACK C27B", 45)
+            framed.close()
+            blank.close()
+            report(r27[0], "PASS" if open_framed else "FAIL", "open at 40 s: %s" % open_framed)
+            report(r27[1], "PASS" if open_blank and late else "FAIL", "open at 40 s: %s; later frame delivered: %s" % (open_blank, bool(late)))
 
         # R18 duplicate window: an identical body is dropped inside the window and admitted again past 30 s.
         if args.quick:
@@ -506,11 +649,15 @@ def run(args, version):
 
         S.stop()
 
+        R23 = "R23 waiting messages are read now first, then next in arrival order, then later; an unknown priority reads as next"
+        R24 = "R24 at most 50 accepted messages wait; the 51st is dropped with drop_reason=queue-full"
+        R26 = "R26 only the first auth line of a connection counts: the child token after a wrong one does not make the post the session's own"
         if args.quick:
             for rule in ("R14 crossSessionInbound=hold: `held` receipt, nothing delivered",
                          "R15 crossSessionInbound=refuse: `expired` receipt with status_detail=refused",
                          "R16 own child (SessionStart hook) posting with the token is delivered",
-                         "R16b own child posting without the token is delivered (process evidence)"):
+                         "R16b own child posting without the token is delivered (process evidence)",
+                         R26, R23, R24):
                 report(rule, "SKIP", "--quick")
         else:
             H = Session(cwd, args.model, ["--settings", json.dumps({"crossSessionInbound": "hold"})], "hold")
@@ -543,6 +690,80 @@ def run(args, version):
             report("R16 own child (SessionStart hook) posting with the token is delivered", "PASS" if O.wait_text("ACK C16", 60) else "FAIL")
             report("R16b own child posting without the token is delivered (process evidence)", "PASS" if O.wait_text("ACK C16B", 60) else "FAIL")
             O.stop()
+
+            # R26 only the first auth line of a connection counts. A SessionStart hook leaves the child token in
+            # the scratch directory, so this script, which is not the session's child, can send it. A frame
+            # that asserts bypass is held at a prompting receiver unless its connection counts as the
+            # session's own child: with the token first it should be delivered, and with a wrong token
+            # first and the right one second, held. The token file goes with the scratch directory.
+            tokfile = os.path.join(cwd, "child-token")
+            hook = {"hooks": {"SessionStart": [{"hooks": [{"type": "command",
+                    "command": "printf %%s \"$CLAUDE_CODE_MESSAGING_TOKEN\" > '%s'" % tokfile}]}]}}
+            T = Session(cwd, args.model, ["--settings", json.dumps(hook)], "token")
+            sessions.append(T)
+            rp26 = Reply(os.path.dirname(T.sock), "-%08x" % (uuid.uuid4().int & 0xFFFFFFFF))
+            replies.append(rp26)
+            try:
+                token = pathlib.Path(tokfile).read_text().strip()
+            except OSError:
+                token = ""
+            def auth26(tokens, marker):
+                m = T.msg(envelope([("from", rp26.address), ("from-mode", "bypass")], asking(marker)), rp26)
+                return outcome(T, rp26, m, marker, before=[{"type": "auth", "token": t} for t in tokens])
+            if len(token) != 32:
+                report(R26, "SKIP", "the hook left no child token")
+            else:
+                first = auth26([token], "C26A")
+                second = auth26(["0" * 32, token], "C26B")
+                if first != "delivered":
+                    report(R26, "SKIP", "the child token from a process that is not the session's child changed nothing (%s), so the order of auth lines cannot be seen" % first)
+                else:
+                    report(R26, "PASS" if second == "held" else "FAIL", "token first: %s; wrong token first, token second: %s" % (first, second))
+            T.stop()
+
+            # R23 and R24 need messages waiting. A session with no tools reads peer messages only between
+            # turns, so while it writes a long answer every post waits in its queue.
+            Q = Session(cwd, args.model, label="queue")
+            sessions.append(Q)
+            rpq = Reply(os.path.dirname(Q.sock), "-%08x" % (uuid.uuid4().int & 0xFFFFFFFF))
+            replies.append(rpq)
+            busy = "Write the whole numbers from 1 to 600, one per line, and nothing else."
+            tag = uuid.uuid4().hex[:4]
+
+            def idle(timeout=120):
+                nid = str(uuid.uuid4())
+                Q.send([{"msgV": 1, "msg_id": nid, "type": "control", "action": "notify_when_idle", "from": rpq.address, "session_id": Q.sid}])
+                return rpq.wait(lambda f: f.get("action") == "peer_idle_notice" and f.get("orig_msg_id") == nid, timeout)
+
+            Q.prompt(busy)
+            time.sleep(3)
+            order = [("later", "C23L"), ("urgent", "C23X"), ("next", "C23N"), ("now", "C23W")]
+            for prio, marker in order:
+                Q.send([Q.msg("%s %s. Reply exactly: OK" % (marker, tag), priority=prio)])
+                time.sleep(0.1)
+            seen = Q.transcript_order([m for _, m in order], 120)
+            report(R23, "PASS" if seen == ["C23W", "C23X", "C23N", "C23L"] else "FAIL",
+                   "read order: %s" % (", ".join(seen) if seen else "not all read"))
+
+            idle()
+            time.sleep(5)
+            idle()
+            rpa, rpb = fresh_reply(), fresh_reply()
+            Q.prompt(busy)
+            time.sleep(3)
+            ids = []
+            for i in range(51):
+                m = Q.msg("C24 %s %02d. Reply exactly: OK" % (tag, i), rpa if i < 30 else rpb)
+                ids.append(m["msg_id"])
+                Q.send([m])
+            time.sleep(8)  # drops to one sender may be coalesced over a 5 s trail
+            d = drops(rpa)
+            d.update(drops(rpb))
+            first_full = next((i for i, mid in enumerate(ids) if d.get(mid) == "queue-full"), None)
+            early = sum(mid in d for mid in ids[:50])
+            report(R24, "PASS" if first_full == 50 and early == 0 else "FAIL",
+                   "first queue-full at index %s; dropped among the first 50: %d; reasons: %s" % (first_full, early, sorted(set(d.values()))))
+            Q.stop()
 
         # R20 a bypassing receiver: R19 and R19b again, against a session in bypassPermissions mode. It
         # runs only on request, because it starts a session that skips permission prompts; the session
