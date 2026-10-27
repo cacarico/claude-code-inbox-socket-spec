@@ -33,7 +33,8 @@ Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
 - [conformance/check.py](conformance/check.py): re-checks the spec against the
   `claude --version` you have. It starts throwaway `claude -p` sessions, which
   cost a few cents.
-- [examples/](examples): `send.py` and `send.sh` post a message;
+- [examples/](examples): `send.py`, `send.mjs` (Node, no dependencies) and
+  `send.sh` post a message;
   `waiter.py` waits for a command or a file, then nudges its own session.
 - [CHANGELOG.md](CHANGELOG.md): which versions were checked, and what changed.
 - `make check`: lints SPEC.md's tags and the links, checks the counts in its
