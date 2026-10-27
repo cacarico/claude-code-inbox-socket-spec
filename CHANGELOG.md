@@ -11,7 +11,7 @@ sections below say what is known of it.
 
 | Claude Code | OS | msgV | rules passed | date |
 |---|---|---|---|---|
-| 2.1.310 | Linux | 1 | 34 of 37 (3 skipped) | 2026-10-27 |
+| 2.1.310 | Linux | 1 | 56 of 59 (3 skipped) | 2026-10-27 |
 | 2.1.310 | Linux | 1 | 28 of 28 | 2026-10-26 |
 
 ## Changes to this document

@@ -13,7 +13,7 @@ To add a log, run the full check with `--log` from the repository root:
 python3 conformance/check.py --log
 ```
 
-The run takes about three minutes and spends a few cents of model use. It
+The run takes about seven minutes and spends a few cents of model use. It
 writes `conformance/runs/<version>-<os>.txt`, replacing a log of the same
 version, so `git diff conformance/runs/` shows what changed since the last
 run. Use `--log FILE` to write somewhere else.
