@@ -2,7 +2,7 @@
 """Run the example clients against a fake receiver. No Claude Code, no model.
 
 The fake receiver is a Unix socket that records what each connection wrote and
-whether the client half-closed. These tests check the client side of SPEC.md:
+whether the client half-closed. These tests check the client side of the pages under spec/:
 one JSON object per line, the half-close, the auth line only on the session's
 own socket, `session_id` and `from`, the envelope, and send.py's handling of
 receipts. send.mjs runs the same cases as send.py when node is on PATH. What a

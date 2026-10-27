@@ -4,6 +4,14 @@ Which Claude Code versions this spec was checked against, and what changed.
 
 ## Changes to this document
 
+- Move the receipts, delivery rules, inbound controls and limits into
+  `spec/delivery.md`, the error table into `spec/errors.md`, the security
+  section into `spec/security.md`, and `claude -p`, bare mode, the platform
+  notes and the minimal client into `spec/platforms.md`. SPEC.md is now the
+  front page alone. Every claim keeps its tag in the evidence table of its new
+  page, and the totals do not change.
+- Link the two references that named a section by number, in the inbound
+  controls and the error table.
 - Add the pages `spec/transport.md`, `spec/frames.md` and `spec/about.md`, and
   make SPEC.md the front page: what the socket is, the version, the summary
   table with one row per page, and what the four tags mean. Each page opens

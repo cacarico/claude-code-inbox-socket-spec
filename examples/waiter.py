@@ -15,7 +15,7 @@ a busy session is read between tool calls. A detached waiter is still verified a
 the session's own child because it sends the token in the auth line, so the
 session delivers it even where no crossSessionInbound value applies.
 
-Not a public interface of Claude Code; see SPEC.md.
+Not a public interface of Claude Code; see the pages under spec/.
 """
 import argparse
 import json

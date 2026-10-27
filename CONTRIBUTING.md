@@ -41,7 +41,7 @@ or one short sentence.
    receiver will close...", and not "In this section we describe...".
 2. State a fact once, on the page it belongs to, and link to it elsewhere. Do
    not summarise at the end of a page, and do not write "as mentioned above".
-   The error section gathers statements from the rest of the document on
+   The errors page gathers statements from the rest of the document on
    purpose, and each of its rows says where the statement is.
 3. Use specific words: a number, a byte, a field name, a quoted log line. Leave
    out "robust", "seamless", "comprehensive", "carefully", "simply",
@@ -60,7 +60,7 @@ or one short sentence.
    rhetorical questions.
 7. Say doubt flatly and in place: "The limit is 103 bytes." The Evidence table
    says how that is known.
-8. Start a changelog line with a verb and name the thing: "Add section 15, one
-   table of what the receiver does with bad input."
+8. Start a changelog line with a verb and name the thing: "Add the errors page,
+   one table of what the receiver does with bad input."
 9. Write commit messages and pull request text in the same register. Say what
    changed and why, and name nothing outside this repository.
