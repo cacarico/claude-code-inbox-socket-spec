@@ -9,9 +9,11 @@ in the code follow.
 ## Before a change
 
 `make check` runs without Claude Code and costs nothing. It lints the tags and
-every relative link, checks the counts in the summary table on SPEC.md,
-compiles the Python files, runs shellcheck when it is installed, and tests the
-example clients against a fake receiver. Run it before every commit.
+every relative link, checks the counts in the summary table on SPEC.md, checks
+the compatibility table in CHANGELOG.md against the logs in
+`conformance/runs/`, compiles the Python files, runs shellcheck when it is
+installed, and tests the example clients against a fake receiver. Run it before
+every commit.
 `make conformance` starts throwaway `claude -p` sessions and spends a few cents
 of model use; run it after a Claude Code upgrade, not for a wording change.
 
