@@ -129,8 +129,9 @@ The 30-second timer is cleared by the first complete line. The line cap is 1 MiB
 | The Go client gives the same cap as 1 MiB | THIRD-PARTY |
 | No complete line within 30 seconds closes the connection | OFFICIAL |
 | The same, at 30.0 seconds | OBSERVED (30.0 s) |
-| The first complete line clears the timer | UNVERIFIED (bundle) |
+| The first complete line clears the timer | OBSERVED (R27; R27b with a blank line) |
 | Build the whole payload first, then connect | OFFICIAL |
 | A frame that is not an object with a string `type` is ignored | OBSERVED |
 | An unknown `type` is ignored | OBSERVED |
-| Queue order, and what is handled outside it | UNVERIFIED (bundle) |
+| `user` frames are read in arrival order, and a `now` frame ahead of them | OBSERVED (R23) |
+| Which other frames are handled outside that order | UNVERIFIED (bundle) |

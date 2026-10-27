@@ -63,7 +63,7 @@ This bites unattended sessions in bypass mode, which hold every message that doe
 | A plain script's `from-name` and `from-mode` were taken as written | OBSERVED (R19) |
 | The receiver checks the connecting pid and start time through the kernel, and records `verifiedPeerPid` | OBSERVED |
 | The receiver checks whether that pid is its own child | OFFICIAL |
-| The receiver checks that the process listening at `from` is the one that posted, before it sends a receipt | UNVERIFIED (bundle) |
+| The receiver checks that the process listening at `from` is the one that posted, before it sends a receipt | OBSERVED (R25: another process listening at `from` got no receipt) |
 | A bypassing receiver holds a message unless the sender says it is bypassing too | OFFICIAL |
 | A frame with `from-mode="bypass"` reached a bypassing `-p` session with no hold and no receipt | OBSERVED (R20) |
 | A message cannot approve a prompt, change configuration or run a slash command, and the session's own rules apply | OFFICIAL |

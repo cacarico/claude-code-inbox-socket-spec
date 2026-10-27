@@ -17,6 +17,8 @@ The run takes about three minutes and spends a few cents of model use. It
 writes `conformance/runs/<version>-<os>.txt`, replacing a log of the same
 version, so `git diff conformance/runs/` shows what changed since the last
 run. Use `--log FILE` to write somewhere else.
+A second run of a version already logged, made with other options, keeps the
+first log and adds its date to the name, such as `2.1.310-linux-2026-10-27.txt`.
 
 To compare two versions, leave out the details after `--`. They hold process
 ids and message ids that differ on every run:

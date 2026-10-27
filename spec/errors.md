@@ -99,8 +99,8 @@ These follow `crossSessionInbound` and the permission classes ([inbound controls
 | A `type` the receiver does not know is ignored | OBSERVED |
 | A `user` frame with missing, empty or non-string `message.content` is ignored | OBSERVED |
 | A `session_id` mismatch drops the frame silently | OBSERVED |
-| A `msg_id` that is not a UUID is treated as absent | UNVERIFIED (bundle) |
-| A `priority` other than `now`, `next` or `later` reads as `next` | UNVERIFIED (bundle) |
+| A `msg_id` that is not a UUID is treated as absent | OBSERVED (R22) |
+| A `priority` other than `now`, `next` or `later` reads as `next` | OBSERVED (R23) |
 | An unknown control `action` is logged and ignored | OBSERVED |
 | `rename` has no effect on a `-p` session | OBSERVED |
 | `notify_when_idle` is refused for a missing, own or unvettable `from`, or a `msg_id` that is not a UUID | UNVERIFIED (bundle) |
@@ -108,10 +108,11 @@ These follow `crossSessionInbound` and the permission classes ([inbound controls
 | An identical body within 30 seconds is dropped as `duplicate` | OBSERVED (a repeat at 5 s dropped, the same body at 31 s admitted) |
 | Past a bucket of 30 messages refilled at 0.5 per second, a message is `rate-limited` | OBSERVED |
 | A session with 50 accepted messages waiting drops more | OFFICIAL |
-| The receipt reason for that drop is `queue-full` | UNVERIFIED (bundle) |
+| The receipt reason for that drop is `queue-full` | OBSERVED (R24) |
 | `hop-loop` and `hop-runaway` are not reachable from a local client | UNVERIFIED (bundle) |
 | Drops to one sender are coalesced over 5 seconds, with ids in `dropped_msg_ids` | UNVERIFIED (bundle) |
-| The receiver checks that the process listening at `from` is the one that posted | UNVERIFIED (bundle) |
+| A receipt goes only to the process that posted: another process listening at `from` gets none | OBSERVED (R25) |
+| The check goes through the kernel | UNVERIFIED (bundle) |
 | An accepted message produces no receipt | OBSERVED |
 | An accepted message produces no receipt | THIRD-PARTY |
 | `refuse` drops every message | OFFICIAL |
