@@ -37,14 +37,15 @@ Claude Code 2.1.310. Top: an idle session named `api-worker`. Bottom: a shell.
 - [examples/](examples): `send.py`, `send.mjs` (Node, no dependencies) and
   `send.sh` post a message;
   `waiter.py` waits for a command or a file, then nudges its own session.
-- [CHANGELOG.md](CHANGELOG.md): which versions were checked, and what changed.
+- [CHANGELOG.md](CHANGELOG.md): a table of the versions and systems checked, and
+  what changed.
 - [.github/workflows/version-check.yml](.github/workflows/version-check.yml):
   once a week, opens an issue when npm has a Claude Code version that
   CHANGELOG.md does not list yet. It runs only where GitHub Actions is
   enabled for the repository.
 - `make check`: lints the evidence tables and the links, checks the counts in
-  the summary table, runs shellcheck, and tests the example clients against a fake
-  receiver. No Claude Code needed, no cost.
+  the summary table and the compatibility table, runs shellcheck, and tests the
+  example clients against a fake receiver. No Claude Code needed, no cost.
 
 ## How it works
 
@@ -122,5 +123,8 @@ Details and how each point is known: [the security page](spec/security.md).
 MIT, see [LICENSE](LICENSE). Sources: the official
 [cross-session messaging](https://code.claude.com/docs/en/cross-session-messaging)
 page, and [claude-code-socket-transport](https://github.com/PeterSR/claude-code-socket-transport)
-by PeterSR, the Go client that first wrote the frame down. Versions checked:
+by PeterSR, the Go client that first wrote the frame down. In use:
+[agents-can-communicate](https://github.com/automatis-tools/agents-can-communicate),
+which passes messages between coding sessions in different vendors' clients
+and posts to this socket for Claude Code. Versions checked, as a table of runs:
 [CHANGELOG.md](CHANGELOG.md).

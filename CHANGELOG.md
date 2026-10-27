@@ -2,6 +2,17 @@
 
 Which Claude Code versions this spec was checked against, and what changed.
 
+## Compatibility
+
+One row for each run of `conformance/check.py` that is logged in
+[conformance/runs/](conformance/runs). `msgV` is the protocol version the
+frames in the log carry. A version that has no row was not run here; the
+sections below say what is known of it.
+
+| Claude Code | OS | msgV | rules passed | date |
+|---|---|---|---|---|
+| 2.1.310 | Linux | 1 | 28 of 28 | 2026-10-26 |
+
 ## Changes to this document
 
 - Mark seven claims as observed, from a logged run of the new rules
@@ -36,7 +47,7 @@ Which Claude Code versions this spec was checked against, and what changed.
 
 ## 2.1.310, checked 2026-10-26 on Linux
 
-`conformance/check.py`: 26 rules, all pass.
+`conformance/check.py`: every rule passes; the count is in the table above.
 
 Seen live:
 
